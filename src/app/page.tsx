@@ -33,6 +33,7 @@ const ParentDashboard = dynamic(() => import('@/components/math/ParentDashboard'
 const OnboardingFlow = dynamic(() => import('@/components/math/OnboardingFlow'), { ssr: false })
 const SummerCampHome = dynamic(() => import('@/components/math/SummerCampHome'), { ssr: false })
 const SummerCampDaily = dynamic(() => import('@/components/math/SummerCampDaily'), { ssr: false })
+const SummerCampFree = dynamic(() => import('@/components/math/SummerCampFree'), { ssr: false })
 const SummerCampDiagnostic = dynamic(() => import('@/components/math/SummerCampDiagnostic'), { ssr: false })
 const SummerCampSkills = dynamic(() => import('@/components/math/SummerCampSkills'), { ssr: false })
 const SummerCampReport = dynamic(() => import('@/components/math/SummerCampReport'), { ssr: false })
@@ -69,6 +70,7 @@ const viewComponents: Record<string, React.ComponentType> = {
   'onboarding': OnboardingFlow,
   'summer-camp': SummerCampHome,
   'summer-daily': SummerCampDaily,
+  'summer-free': SummerCampFree,
   'summer-diagnostic': SummerCampDiagnostic,
   'summer-skills': SummerCampSkills,
   'summer-report': SummerCampReport,

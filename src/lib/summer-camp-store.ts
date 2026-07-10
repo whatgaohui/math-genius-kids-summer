@@ -48,6 +48,34 @@ export interface SkillProgress {
   practiceTotal: number;
 }
 
+// 自由训练单次记录
+export interface FreePracticeRecord {
+  id: string;
+  topicId: string;        // QuestionFocus
+  topicName: string;
+  date: string;           // ISO date
+  baseCorrect: number;
+  baseTotal: number;
+  speedCorrect: number;
+  speedTotal: number;
+  timeMs: number;
+  accuracy: number;
+  avgTimeMs: number;
+  stars: number;
+}
+
+// 每个题型的累计统计
+export interface TopicStats {
+  topicId: string;
+  attempts: number;
+  totalCorrect: number;
+  totalQuestions: number;
+  bestAccuracy: number;
+  bestAvgTimeMs: number;
+  lastAccuracy: number;
+  lastDate: string;
+}
+
 interface SummerCampState {
   // 计划
   enrolled: boolean;             // 是否已加入训练营
@@ -69,6 +97,10 @@ interface SummerCampState {
   // 周报已查看
   lastReportWeek: number;
 
+  // 自由训练（不按计划）
+  freePracticeHistory: FreePracticeRecord[];
+  topicStats: Record<string, TopicStats>;
+
   // ── Actions ──
   enroll: (childName: string, childGrade: string) => void;
   unenroll: () => void;
@@ -79,6 +111,7 @@ interface SummerCampState {
   recordSkillPractice: (key: SkillKey, correct: number, total: number) => void;
   setLastReportWeek: (week: number) => void;
   resetCamp: () => void;
+  recordFreePractice: (record: FreePracticeRecord) => void;
 }
 
 // ─── Defaults ───────────────────────────────────────────────────────────────
@@ -106,6 +139,8 @@ export const useSummerCampStore = create<SummerCampState>()(
       diagnosticPost: null,
       skillProgress: { ...DEFAULT_SKILLS },
       lastReportWeek: 0,
+      freePracticeHistory: [],
+      topicStats: {},
 
       enroll: (childName, childGrade) =>
         set({
@@ -172,6 +207,32 @@ export const useSummerCampStore = create<SummerCampState>()(
 
       setLastReportWeek: (week) => set({ lastReportWeek: week }),
 
+      recordFreePractice: (record) =>
+        set((s) => {
+          const history = [record, ...s.freePracticeHistory].slice(0, 200); // 保留最近200条
+          const prev = s.topicStats[record.topicId];
+          const totalCorrect = (prev?.totalCorrect ?? 0) + record.baseCorrect + record.speedCorrect;
+          const totalQuestions = (prev?.totalQuestions ?? 0) + record.baseTotal + record.speedTotal;
+          const bestAccuracy = Math.max(prev?.bestAccuracy ?? 0, record.accuracy);
+          const bestAvgTimeMs = prev?.bestAvgTimeMs
+            ? (record.avgTimeMs < prev.bestAvgTimeMs && record.accuracy >= prev.bestAccuracy ? record.avgTimeMs : prev.bestAvgTimeMs)
+            : record.avgTimeMs;
+          const topicStats = {
+            ...s.topicStats,
+            [record.topicId]: {
+              topicId: record.topicId,
+              attempts: (prev?.attempts ?? 0) + 1,
+              totalCorrect,
+              totalQuestions,
+              bestAccuracy,
+              bestAvgTimeMs,
+              lastAccuracy: record.accuracy,
+              lastDate: record.date,
+            } as TopicStats,
+          };
+          return { freePracticeHistory: history, topicStats };
+        }),
+
       resetCamp: () =>
         set({
           enrolled: false,
@@ -184,6 +245,8 @@ export const useSummerCampStore = create<SummerCampState>()(
           diagnosticPost: null,
           skillProgress: { ...DEFAULT_SKILLS },
           lastReportWeek: 0,
+          freePracticeHistory: [],
+          topicStats: {},
         }),
     }),
     {

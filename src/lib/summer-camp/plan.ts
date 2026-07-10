@@ -202,3 +202,98 @@ export function getCurrentDay(startDate: string | null): number {
 export function getTotalQuestions(): number {
   return DAYS.reduce((sum, d) => sum + d.count + d.speedCount, 0);
 }
+
+// ─── 自由训练目录（不按计划，任意选择题型） ────────────────────────────────────
+
+export interface FreeTopic {
+  id: QuestionFocus;
+  name: string;
+  emoji: string;
+  desc: string;
+  category: 'add20' | 'sub20' | 'add100' | 'sub100' | 'mix';
+  categoryLabel: string;
+  count: number;        // 默认基础题量
+  speedCount: number;   // 默认限时题量
+  speedSeconds: number;
+}
+
+export interface FreeCategory {
+  key: 'add20' | 'sub20' | 'add100' | 'sub100' | 'mix';
+  label: string;
+  emoji: string;
+  color: string;
+  bg: string;
+  topics: FreeTopic[];
+}
+
+export const FREE_CATEGORIES: FreeCategory[] = [
+  {
+    key: 'add20',
+    label: '20以内加法',
+    emoji: '➕',
+    color: '#10B981',
+    bg: '#ECFDF5',
+    topics: [
+      { id: 'add-10', name: '10以内加法', emoji: '😊', desc: 'sum ≤ 10，热身', category: 'add20', categoryLabel: '20以内加法', count: 15, speedCount: 20, speedSeconds: 60 },
+      { id: 'add-carry-9', name: '9+几 进位', emoji: '🎯', desc: '9+2 ~ 9+9 凑十法', category: 'add20', categoryLabel: '20以内加法', count: 15, speedCount: 18, speedSeconds: 75 },
+      { id: 'add-carry-8', name: '8/7/6+几 进位', emoji: '✨', desc: '8+几、7+几、6+几', category: 'add20', categoryLabel: '20以内加法', count: 15, speedCount: 18, speedSeconds: 80 },
+      { id: 'add-carry-20', name: '20以内进位加法', emoji: '💪', desc: '综合进位加法', category: 'add20', categoryLabel: '20以内加法', count: 18, speedCount: 20, speedSeconds: 80 },
+    ],
+  },
+  {
+    key: 'sub20',
+    label: '20以内减法',
+    emoji: '➖',
+    color: '#F59E0B',
+    bg: '#FFFBEB',
+    topics: [
+      { id: 'sub-10', name: '10以内减法', emoji: '🙂', desc: '10以内基础减法', category: 'sub20', categoryLabel: '20以内减法', count: 15, speedCount: 20, speedSeconds: 60 },
+      { id: 'sub-borrow-20', name: '20以内退位减法', emoji: '🔨', desc: '破十法专项', category: 'sub20', categoryLabel: '20以内减法', count: 18, speedCount: 20, speedSeconds: 80 },
+    ],
+  },
+  {
+    key: 'add100',
+    label: '100以内加法',
+    emoji: '🔵',
+    color: '#EF4444',
+    bg: '#FEF2F2',
+    topics: [
+      { id: 'add-100-no-carry', name: '不进位加法', emoji: '➕', desc: '34+12 类型，不进位', category: 'add100', categoryLabel: '100以内加法', count: 18, speedCount: 20, speedSeconds: 90 },
+      { id: 'add-100-carry', name: '进位加法', emoji: '⬆️', desc: '37+25 类型，需进位', category: 'add100', categoryLabel: '100以内加法', count: 20, speedCount: 20, speedSeconds: 100 },
+    ],
+  },
+  {
+    key: 'sub100',
+    label: '100以内减法',
+    emoji: '🟠',
+    color: '#8B5CF6',
+    bg: '#F5F3FF',
+    topics: [
+      { id: 'sub-100-no-borrow', name: '不退位减法', emoji: '➖', desc: '56-23 类型，不退位', category: 'sub100', categoryLabel: '100以内减法', count: 18, speedCount: 20, speedSeconds: 90 },
+      { id: 'sub-100-borrow', name: '退位减法', emoji: '⬇️', desc: '52-27 类型，需退位', category: 'sub100', categoryLabel: '100以内减法', count: 20, speedCount: 20, speedSeconds: 100 },
+    ],
+  },
+  {
+    key: 'mix',
+    label: '混合 & 综合',
+    emoji: '🔀',
+    color: '#EC4899',
+    bg: '#FDF2F8',
+    topics: [
+      { id: 'mix-20', name: '20以内混合', emoji: '🔀', desc: '加减混合，20以内', category: 'mix', categoryLabel: '混合 & 综合', count: 18, speedCount: 20, speedSeconds: 80 },
+      { id: 'mix-100', name: '100以内混合', emoji: '🔀', desc: '加减混合，100以内', category: 'mix', categoryLabel: '混合 & 综合', count: 20, speedCount: 22, speedSeconds: 100 },
+      { id: 'mix-20-speed', name: '20以内限时提速', emoji: '⚡', desc: '20以内速度冲刺', category: 'mix', categoryLabel: '混合 & 综合', count: 20, speedCount: 30, speedSeconds: 90 },
+      { id: 'mix-100-speed', name: '100以内限时提速', emoji: '⚡', desc: '100以内速度冲刺', category: 'mix', categoryLabel: '混合 & 综合', count: 20, speedCount: 25, speedSeconds: 100 },
+      { id: 'final-test', name: '综合测评', emoji: '🏆', desc: '20+100综合，检验成果', category: 'mix', categoryLabel: '混合 & 综合', count: 25, speedCount: 25, speedSeconds: 110 },
+      { id: 'error-review', name: '错题复习', emoji: '🧹', desc: '自动从错题本生成', category: 'mix', categoryLabel: '混合 & 综合', count: 15, speedCount: 20, speedSeconds: 80 },
+    ],
+  },
+];
+
+// 所有题型扁平化（用于查找）
+export const ALL_FREE_TOPICS: FreeTopic[] = FREE_CATEGORIES.flatMap((c) => c.topics);
+
+export function getFreeTopic(id: QuestionFocus): FreeTopic | undefined {
+  return ALL_FREE_TOPICS.find((t) => t.id === id);
+}
+

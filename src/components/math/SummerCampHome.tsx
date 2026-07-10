@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Calendar, CheckCircle2, ChevronRight, Flame, Lightbulb,
-  Play, Sparkles, Star, Target, TrendingUp, Trophy, Zap, Lock,
+  Play, Sparkles, Star, Target, TrendingUp, Trophy, Zap,
   GraduationCap, Award, BookOpen, FileBarChart, Rocket, Leaf,
 } from 'lucide-react';
 import { useSummerCampStore, getCompletedDayCount, getTotalAccuracy, getStreakDays } from '@/lib/summer-camp-store';
@@ -366,6 +366,36 @@ export default function SummerCampHome() {
         </motion.div>
       )}
 
+      {/* ═══ Free Practice Entry (prominent) ═══ */}
+      <motion.div custom={3} variants={fadeUp} initial="hidden" animate="visible" className="mx-auto max-w-md px-4 mb-4">
+        <button
+          onClick={() => { playClickSound(); setCurrentView('summer-free'); }}
+          className="w-full relative overflow-hidden rounded-3xl p-4 text-left active:scale-[0.98] transition-transform shadow-lg"
+          style={{ background: 'linear-gradient(135deg, #06B6D4 0%, #0EA5E9 50%, #6366F1 100%)' }}
+        >
+          <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-white/10 -translate-y-1/3 translate-x-1/4" />
+          <div className="relative z-10 flex items-center gap-3">
+            <motion.div
+              className="text-4xl"
+              animate={{ y: [0, -4, 0], rotate: [0, 8, -8, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity }}
+            >🎯</motion.div>
+            <div className="flex-1">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <h3 className="text-sm font-black text-white">自由训练</h3>
+                <span className="text-[9px] bg-white/25 text-white rounded-full px-1.5 py-0.5 font-bold">想练什么直接选</span>
+              </div>
+              <p className="text-[11px] text-white/85">
+                {camp.freePracticeHistory.length > 0
+                  ? `已练 ${camp.freePracticeHistory.length} 次 · ${Object.keys(camp.topicStats).filter(k => camp.topicStats[k].attempts > 0).length} 个题型`
+                  : '100以内加减法、进位退位… 任选题型开练'}
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-white/80 flex-shrink-0" />
+          </div>
+        </button>
+      </motion.div>
+
       {/* ═══ Quick entries ═══ */}
       <motion.div custom={3} variants={fadeUp} initial="hidden" animate="visible" className="mx-auto max-w-md px-4 mb-4">
         <h2 className="text-sm font-bold text-gray-800 mb-3">训练营工具</h2>
@@ -393,7 +423,10 @@ export default function SummerCampHome() {
 
       {/* ═══ 60-day map ═══ */}
       <motion.div custom={4} variants={fadeUp} initial="hidden" animate="visible" className="mx-auto max-w-md px-4 mb-4">
-        <h2 className="text-sm font-bold text-gray-800 mb-3">60 天闯关地图</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-bold text-gray-800">📅 推荐训练路径</h2>
+          <span className="text-[10px] text-gray-400">可按计划走，也可自由选</span>
+        </div>
         {/* Phase tabs */}
         <div className="flex gap-2 mb-3 overflow-x-auto pb-1 -mx-1 px-1">
           {PHASES.map((p) => {
@@ -421,30 +454,32 @@ export default function SummerCampHome() {
               const record = camp.completedDays[d.day];
               const done = !!record?.completed;
               const isToday = d.day === activeDay;
-              const locked = d.day > activeDay;
+              const isFuture = d.day > activeDay;
               const phaseInfo = getPhaseInfo(d.phase)!;
               return (
                 <button
                   key={d.day}
                   onClick={() => {
                     playClickSound();
-                    if (locked && !done) return;
+                    // 所有日子都可点击，进入对应天的计划训练
+                    // 通过 sessionStorage 传递 day，daily 页会优先用 store.currentDay
+                    // 但为了支持任意天，我们临时设置 currentDay
+                    useSummerCampStore.setState({ currentDay: d.day });
+                    // 清除可能的 free topic
+                    try { sessionStorage.removeItem('summer-free-topic'); } catch { /* ignore */ }
                     setCurrentView('summer-daily');
                   }}
-                  disabled={locked && !done}
                   className={`relative aspect-square rounded-2xl flex flex-col items-center justify-center transition-all ${
-                    done ? 'shadow-sm' : locked ? 'bg-gray-50' : 'bg-white border-2'
+                    done ? 'shadow-sm' : isFuture ? 'bg-gray-50 opacity-60' : 'bg-white border-2'
                   }`}
                   style={done ? { backgroundColor: `${phaseInfo.color}15` } : isToday ? { borderColor: phaseInfo.color } : {}}
                 >
                   {done ? (
                     <CheckCircle2 className="w-5 h-5" style={{ color: phaseInfo.color }} />
-                  ) : locked ? (
-                    <Lock className="w-3.5 h-3.5 text-gray-300" />
                   ) : (
                     <span className="text-base">{d.emoji}</span>
                   )}
-                  <span className={`text-[9px] font-bold mt-0.5 ${done ? '' : locked ? 'text-gray-300' : 'text-gray-600'}`} style={done ? { color: phaseInfo.color } : {}}>
+                  <span className={`text-[9px] font-bold mt-0.5 ${done ? '' : isFuture ? 'text-gray-400' : 'text-gray-600'}`} style={done ? { color: phaseInfo.color } : {}}>
                     {d.day}
                   </span>
                   {isToday && !done && (

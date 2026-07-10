@@ -7,8 +7,9 @@ import {
   Star, Target, Trophy, XCircle, Zap, ChevronRight, Award, RotateCcw,
 } from 'lucide-react';
 import { useSummerCampStore } from '@/lib/summer-camp-store';
+import type { FreePracticeRecord } from '@/lib/summer-camp-store';
 import { useGameStore } from '@/lib/game-store';
-import { getDayPlan, getPhaseInfo } from '@/lib/summer-camp/plan';
+import { getDayPlan, getPhaseInfo, getFreeTopic, FREE_CATEGORIES, type FreeTopic, type QuestionFocus } from '@/lib/summer-camp/plan';
 import { generateCampQuestions } from '@/lib/summer-camp/questions';
 import type { MathQuestion } from '@/lib/math-utils';
 import { calculateStars, formatTimeChinese } from '@/lib/math-utils';
@@ -47,6 +48,7 @@ export default function SummerCampDaily() {
   const setCurrentView = useGameStore((s) => s.setCurrentView);
   const camp = useSummerCampStore();
   const recordDay = useSummerCampStore((s) => s.recordDay);
+  const recordFreePractice = useSummerCampStore((s) => s.recordFreePractice);
 
   const [stage, setStage] = useState<Stage>('intro');
   const [baseSession, setBaseSession] = useState<SessionState | null>(null);
@@ -54,17 +56,42 @@ export default function SummerCampDaily() {
   const [input, setInput] = useState('');
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [freeRecord, setFreeRecord] = useState<FreePracticeRecord | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speedTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Determine which day we're training
-  const calendarDay = useMemo(() => {
-    // train current store day
-    return camp.currentDay;
-  }, [camp.currentDay]);
+  // 模式判断：自由训练（从 sessionStorage 读取选题）或计划训练
+  const freeTopic: FreeTopic | null = useMemo(() => {
+    try {
+      const raw = sessionStorage.getItem('summer-free-topic');
+      if (raw) return JSON.parse(raw) as FreeTopic;
+    } catch { /* ignore */ }
+    return null;
+  }, []);
+
+  // 训练参数：合并 plan 和 freeTopic 两种来源
+  const calendarDay = camp.currentDay;
   const plan = getDayPlan(calendarDay);
   const phaseInfo = plan ? getPhaseInfo(plan.phase) : null;
   const existingRecord = plan ? camp.completedDays[plan.day] : null;
+
+  // 统一的训练配置
+  const focus: QuestionFocus = freeTopic?.id ?? plan?.focus ?? 'mix-20';
+  const topicName: string = freeTopic?.name ?? plan?.title ?? '训练';
+  const topicEmoji: string = freeTopic?.emoji ?? plan?.emoji ?? '📝';
+  const topicTip: string = freeTopic
+    ? `自由训练：${freeTopic.name}。${freeTopic.desc}`
+    : (plan?.tip ?? '认真计算，看清符号！');
+  const baseCount: number = freeTopic?.count ?? plan?.count ?? 15;
+  const speedCount: number = freeTopic?.speedCount ?? plan?.speedCount ?? 20;
+  const speedSeconds: number = freeTopic?.speedSeconds ?? plan?.speedSeconds ?? 80;
+  const isTest: boolean = plan?.isTest ?? false;
+  const themeColor: string = freeTopic
+    ? (FREE_CATEGORIES.find((c) => c.topics.some((t) => t.id === freeTopic.id))?.color ?? '#06B6D4')
+    : (phaseInfo?.color ?? '#F59E0B');
+  const themeBg: string = freeTopic
+    ? (FREE_CATEGORIES.find((c) => c.topics.some((t) => t.id === freeTopic.id))?.bg ?? '#ECFEFF')
+    : (phaseInfo?.bg ?? '#FFF7ED');
 
   // Resume audio
   useEffect(() => {
@@ -87,8 +114,7 @@ export default function SummerCampDaily() {
 
   // ── Start base practice ──
   const startBase = useCallback(() => {
-    if (!plan) return;
-    const questions = generateCampQuestions(plan.focus, plan.count);
+    const questions = generateCampQuestions(focus, baseCount);
     setBaseSession({
       questions,
       index: 0,
@@ -103,12 +129,11 @@ export default function SummerCampDaily() {
     setInput('');
     setFeedback(null);
     setStage('base');
-  }, [plan]);
+  }, [focus, baseCount]);
 
   // ── Start speed challenge ──
   const startSpeed = useCallback(() => {
-    if (!plan) return;
-    const questions = generateCampQuestions(plan.focus, plan.speedCount);
+    const questions = generateCampQuestions(focus, speedCount);
     setSpeedSession({
       questions,
       index: 0,
@@ -119,16 +144,16 @@ export default function SummerCampDaily() {
       combo: 0,
       maxCombo: 0,
       answers: [],
-      timeLeft: plan.speedSeconds,
+      timeLeft: speedSeconds,
     });
     setInput('');
     setFeedback(null);
     setStage('speed');
-  }, [plan]);
+  }, [focus, speedCount, speedSeconds]);
 
-  // ── Finish speed & save day record ──
+  // ── Finish speed & save record ──
   const finishSpeed = useCallback((finalSpeed: SessionState) => {
-    if (!plan || !baseSession) return;
+    if (!baseSession) return;
     if (speedTimer.current) clearInterval(speedTimer.current);
 
     const baseCorrect = baseSession.correct;
@@ -137,9 +162,8 @@ export default function SummerCampDaily() {
 
     const speedCorrect = finalSpeed.correct;
     const speedTotal = finalSpeed.questions.length;
-    const speedTimeMs = plan.speedSeconds - (finalSpeed.timeLeft ?? 0); // actual elapsed
-    // Use min of speedTimeMs cap
-    const actualSpeedTime = Math.min(speedTimeMs, plan.speedSeconds) * 1000;
+    const speedTimeMs = speedSeconds - (finalSpeed.timeLeft ?? 0); // actual elapsed
+    const actualSpeedTime = Math.min(speedTimeMs, speedSeconds) * 1000;
 
     const totalCorrect = baseCorrect + speedCorrect;
     const totalQuestions = baseTotal + speedTotal;
@@ -147,28 +171,50 @@ export default function SummerCampDaily() {
     const totalTimeMs = baseTimeMs + actualSpeedTime;
     const avgTimeMs = Math.round(totalTimeMs / totalQuestions);
     const stars = calculateStars(totalCorrect, totalQuestions);
+    const todayStr = new Date().toISOString().split('T')[0];
 
-    recordDay({
-      day: plan.day,
-      date: new Date().toISOString().split('T')[0],
-      baseCorrect,
-      baseTotal,
-      baseTimeMs,
-      speedCorrect,
-      speedTotal,
-      speedTimeMs: actualSpeedTime,
-      accuracy,
-      avgTimeMs,
-      stars,
-      completed: true,
-    });
+    if (freeTopic) {
+      // 自由训练：记录到 freePracticeHistory
+      const rec: FreePracticeRecord = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        topicId: freeTopic.id,
+        topicName: freeTopic.name,
+        date: todayStr,
+        baseCorrect,
+        baseTotal,
+        speedCorrect,
+        speedTotal,
+        timeMs: totalTimeMs,
+        accuracy,
+        avgTimeMs,
+        stars,
+      };
+      recordFreePractice(rec);
+      setFreeRecord(rec);
+    } else if (plan) {
+      // 计划训练：记录到 completedDays
+      recordDay({
+        day: plan.day,
+        date: todayStr,
+        baseCorrect,
+        baseTotal,
+        baseTimeMs,
+        speedCorrect,
+        speedTotal,
+        speedTimeMs: actualSpeedTime,
+        accuracy,
+        avgTimeMs,
+        stars,
+        completed: true,
+      });
+    }
 
     if (stars >= 2) {
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 2500);
     }
     setStage('result');
-  }, [plan, baseSession, recordDay]);
+  }, [baseSession, speedSeconds, freeTopic, plan, recordDay, recordFreePractice]);
 
   // ── Speed countdown ──
   useEffect(() => {
@@ -196,7 +242,7 @@ export default function SummerCampDaily() {
   const handleAnswer = useCallback((sessionType: 'base' | 'speed') => {
     const session = sessionType === 'base' ? baseSession : speedSession;
     const setSession = sessionType === 'base' ? setBaseSession : setSpeedSession;
-    if (!session || !plan) return;
+    if (!session) return;
     const current = session.questions[session.index];
     if (!current) return;
     const answerNum = parseInt(input, 10);
@@ -225,13 +271,13 @@ export default function SummerCampDaily() {
         correctAnswer: current.correctAnswer,
         userAnswer: answerNum,
         operation: current.operation === 'add' ? '加法' : current.operation === 'subtract' ? '减法' : current.operation,
-        difficulty: plan.isTest ? 'hard' : 'medium',
+        difficulty: isTest ? 'hard' : 'medium',
         mode: sessionType === 'base' ? 'free' : 'speed',
         timestamp: Date.now(),
         date: new Date().toISOString(),
         reviewCount: 0,
         mastered: false,
-        grade: plan.phase <= 2 ? 1 : 2,
+        grade: (plan?.phase ?? 3) <= 2 ? 1 : 2,
       });
     }
 
@@ -260,7 +306,7 @@ export default function SummerCampDaily() {
         });
       }
     }, isCorrect ? 500 : 1100);
-  }, [baseSession, speedSession, input, plan, finishSpeed]);
+  }, [baseSession, speedSession, input, isTest, plan, finishSpeed]);
 
   // ── Number pad input ──
   const pressKey = (key: string) => {
@@ -277,40 +323,49 @@ export default function SummerCampDaily() {
   };
 
   // ── INTRO STAGE ──
-  if (stage === 'intro' || !plan) {
+  if (stage === 'intro') {
     return (
       <div className="min-h-screen bg-[#F7F8FC]">
         <div className="mx-auto max-w-md px-4 pt-5 pb-28">
           <button
-            onClick={() => { playClickSound(); setCurrentView('summer-camp'); }}
+            onClick={() => {
+              playClickSound();
+              // 自由模式返回 free 页，计划模式返回 camp
+              if (freeTopic) {
+                try { sessionStorage.removeItem('summer-free-topic'); } catch { /* ignore */ }
+                setCurrentView('summer-free');
+              } else {
+                setCurrentView('summer-camp');
+              }
+            }}
             className="flex items-center gap-1 text-gray-500 text-xs font-medium bg-white rounded-full px-3 py-2 mb-4 shadow-sm active:scale-95 transition-transform"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> 返回训练营
+            <ArrowLeft className="w-3.5 h-3.5" /> {freeTopic ? '返回自由训练' : '返回训练营'}
           </button>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="rounded-3xl p-6 shadow-xl relative overflow-hidden mb-4"
-            style={{ backgroundColor: phaseInfo?.bg }}
+            style={{ backgroundColor: themeBg }}
           >
-            <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full" style={{ backgroundColor: `${phaseInfo?.color}10` }} />
+            <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full" style={{ backgroundColor: `${themeColor}10` }} />
             <div className="relative z-10 text-center">
-              <span className="inline-block text-[10px] font-bold text-white rounded-full px-3 py-1 mb-3" style={{ backgroundColor: phaseInfo?.color }}>
-                {phaseInfo?.emoji} {phaseInfo?.name} · Day {plan?.day}
+              <span className="inline-block text-[10px] font-bold text-white rounded-full px-3 py-1 mb-3" style={{ backgroundColor: themeColor }}>
+                {freeTopic ? '🎯 自由训练' : `${phaseInfo?.emoji} ${phaseInfo?.name} · Day ${plan?.day}`}
               </span>
               <motion.div
                 className="text-6xl mb-3"
                 animate={{ y: [0, -6, 0], rotate: [0, 5, -5, 0] }}
                 transition={{ duration: 3, repeat: Infinity }}
-              >{plan?.emoji}</motion.div>
-              <h1 className="text-xl font-black text-gray-800 mb-2">{plan?.title}</h1>
-              {plan?.isTest && (
+              >{topicEmoji}</motion.div>
+              <h1 className="text-xl font-black text-gray-800 mb-2">{topicName}</h1>
+              {isTest && (
                 <span className="inline-block text-[10px] bg-red-100 text-red-500 rounded-full px-2 py-0.5 font-bold mb-2">📋 测评日</span>
               )}
               <div className="bg-white/70 backdrop-blur rounded-2xl p-3 mt-3 flex items-start gap-2 text-left">
                 <Lightbulb className="w-4 h-4 text-[#F59E0B] flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-gray-600 leading-relaxed">{plan?.tip}</p>
+                <p className="text-xs text-gray-600 leading-relaxed">{topicTip}</p>
               </div>
             </div>
           </motion.div>
@@ -321,7 +376,7 @@ export default function SummerCampDaily() {
               <div className="w-10 h-10 rounded-xl bg-[#10B981]/10 flex items-center justify-center text-lg">📝</div>
               <div className="flex-1">
                 <p className="text-sm font-bold text-gray-800">第一阶段 · 基础练习</p>
-                <p className="text-[11px] text-gray-400">{plan?.count} 题 · 不限时 · 打牢方法</p>
+                <p className="text-[11px] text-gray-400">{baseCount} 题 · 不限时 · 打牢方法</p>
               </div>
               <span className="text-[10px] font-bold text-[#10B981] bg-[#10B981]/10 rounded-full px-2 py-1">基础</span>
             </div>
@@ -329,23 +384,31 @@ export default function SummerCampDaily() {
               <div className="w-10 h-10 rounded-xl bg-[#F59E0B]/10 flex items-center justify-center text-lg">⚡</div>
               <div className="flex-1">
                 <p className="text-sm font-bold text-gray-800">第二阶段 · 限时挑战</p>
-                <p className="text-[11px] text-gray-400">{plan?.speedCount} 题 · {plan?.speedSeconds}秒 · 冲刺速度</p>
+                <p className="text-[11px] text-gray-400">{speedCount} 题 · {speedSeconds}秒 · 冲刺速度</p>
               </div>
               <span className="text-[10px] font-bold text-[#F59E0B] bg-[#F59E0B]/10 rounded-full px-2 py-1">提速</span>
             </div>
           </div>
 
-          {existingRecord?.completed && (
+          {!freeTopic && existingRecord?.completed && (
             <div className="bg-amber-50 rounded-2xl p-3 mb-4 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-amber-500 flex-shrink-0" />
               <p className="text-[11px] text-amber-700">今日已完成，正确率 {existingRecord.accuracy}%，可再练一次刷新记录</p>
+            </div>
+          )}
+          {freeTopic && camp.topicStats[freeTopic.id]?.attempts > 0 && (
+            <div className="bg-cyan-50 rounded-2xl p-3 mb-4 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-cyan-500 flex-shrink-0" />
+              <p className="text-[11px] text-cyan-700">
+                已练 {camp.topicStats[freeTopic.id].attempts} 次 · 最佳 {camp.topicStats[freeTopic.id].bestAccuracy}%
+              </p>
             </div>
           )}
 
           <button
             onClick={() => { playClickSound(); startBase(); }}
             className="w-full py-4 rounded-2xl text-white text-sm font-black shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2"
-            style={{ backgroundColor: phaseInfo?.color, boxShadow: `0 8px 20px ${phaseInfo?.color}40` }}
+            style={{ backgroundColor: themeColor, boxShadow: `0 8px 20px ${themeColor}40` }}
           >
             <Play className="w-4 h-4 fill-white" /> 开始训练
           </button>
@@ -394,19 +457,23 @@ export default function SummerCampDaily() {
   }
 
   // ── RESULT STAGE ──
-  if (stage === 'result' && baseSession && speedSession && plan) {
+  if (stage === 'result' && baseSession && speedSession) {
     const baseCorrect = baseSession.correct;
     const baseTotal = baseSession.questions.length;
     const totalCorrect = baseCorrect + speedSession.correct;
     const totalQuestions = baseTotal + speedSession.questions.length;
     const accuracy = Math.round((totalCorrect / totalQuestions) * 100);
     const stars = calculateStars(totalCorrect, totalQuestions);
-    // 优先用已保存记录，回退到 session 实际数据，避免 store 时序导致 totalTime 为 0
-    const savedRecord = camp.completedDays[plan.day];
-    const baseTimeMs = savedRecord?.baseTimeMs ?? (Date.now() - baseSession.startTime);
-    const speedTimeMs = savedRecord?.speedTimeMs ?? (plan.speedSeconds * 1000);
+    // 计算总用时：自由模式用 freeRecord，计划模式用 savedRecord，回退到 session
+    const baseTimeMs = freeRecord?.timeMs
+      ? (freeRecord.timeMs - Math.min(speedSeconds, speedSeconds - (speedSession.timeLeft ?? 0)) * 1000)
+      : (plan ? (camp.completedDays[plan.day]?.baseTimeMs ?? (Date.now() - baseSession.startTime)) : (Date.now() - baseSession.startTime));
+    const speedTimeMs = freeRecord
+      ? (freeRecord.timeMs - baseTimeMs)
+      : (plan ? (camp.completedDays[plan.day]?.speedTimeMs ?? (speedSeconds * 1000)) : (speedSeconds * 1000));
     const totalTime = baseTimeMs + speedTimeMs;
     const isBest = accuracy >= 90;
+    const resultLabel = freeTopic ? topicName : `Day ${plan?.day} · ${plan?.title}`;
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#FFF7ED] to-[#F7F8FC]">
@@ -442,7 +509,7 @@ export default function SummerCampDaily() {
             <h2 className="text-xl font-black text-gray-800 mb-1">
               {isBest ? '太棒了！' : accuracy >= 75 ? '做得不错！' : '继续加油！'}
             </h2>
-            <p className="text-xs text-gray-400 mb-5">Day {plan.day} · {plan.title} 训练完成</p>
+            <p className="text-xs text-gray-400 mb-5">{resultLabel} 训练完成</p>
 
             {/* Stars */}
             <div className="flex items-center justify-center gap-2 mb-5">
@@ -492,17 +559,25 @@ export default function SummerCampDaily() {
 
             <div className="flex gap-2.5">
               <button
-                onClick={() => { playClickSound(); setStage('intro'); setBaseSession(null); setSpeedSession(null); }}
+                onClick={() => { playClickSound(); setStage('intro'); setBaseSession(null); setSpeedSession(null); setFreeRecord(null); }}
                 className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-600 text-sm font-bold active:scale-95 transition-transform flex items-center justify-center gap-1"
               >
                 <RotateCcw className="w-4 h-4" /> 再练一次
               </button>
               <button
-                onClick={() => { playClickSound(); setCurrentView('summer-camp'); }}
+                onClick={() => {
+                  playClickSound();
+                  if (freeTopic) {
+                    try { sessionStorage.removeItem('summer-free-topic'); } catch { /* ignore */ }
+                    setCurrentView('summer-free');
+                  } else {
+                    setCurrentView('summer-camp');
+                  }
+                }}
                 className="flex-[2] py-3 rounded-2xl text-white text-sm font-black shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-1"
-                style={{ backgroundColor: phaseInfo?.color }}
+                style={{ backgroundColor: themeColor }}
               >
-                <ChevronRight className="w-4 h-4" /> 返回训练营
+                <ChevronRight className="w-4 h-4" /> {freeTopic ? '返回自由训练' : '返回训练营'}
               </button>
             </div>
           </motion.div>
@@ -548,14 +623,19 @@ export default function SummerCampDaily() {
               onClick={() => {
                 if (confirm('确定退出吗？本次训练进度将不保存')) {
                   if (speedTimer.current) clearInterval(speedTimer.current);
-                  setCurrentView('summer-camp');
+                  if (freeTopic) {
+                    try { sessionStorage.removeItem('summer-free-topic'); } catch { /* ignore */ }
+                    setCurrentView('summer-free');
+                  } else {
+                    setCurrentView('summer-camp');
+                  }
                 }
               }}
               className="flex items-center gap-1 text-gray-400 text-xs font-medium min-h-[36px]"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> 退出
             </button>
-            <span className="text-xs font-bold" style={{ color: phaseInfo?.color }}>
+            <span className="text-xs font-bold" style={{ color: themeColor }}>
               {isSpeed ? '⚡ 限时挑战' : '📝 基础练习'}
             </span>
             <span className="text-xs font-bold text-gray-600">
@@ -566,7 +646,7 @@ export default function SummerCampDaily() {
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
             <motion.div
               className="h-full rounded-full"
-              style={{ backgroundColor: phaseInfo?.color }}
+              style={{ backgroundColor: themeColor }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.3 }}
             />
@@ -650,7 +730,7 @@ export default function SummerCampDaily() {
           <button
             onClick={() => pressKey('ok')}
             className="h-14 rounded-2xl text-white text-lg font-black active:scale-95 transition-transform shadow-md col-span-3"
-            style={{ backgroundColor: phaseInfo?.color }}
+            style={{ backgroundColor: themeColor }}
           >
             确定 ✓
           </button>
