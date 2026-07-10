@@ -7,6 +7,7 @@ import {
   Star, TrendingUp, Trophy, XCircle, Zap, ChevronRight, Target, AlertTriangle,
 } from 'lucide-react';
 import { useSummerCampStore } from '@/lib/summer-camp-store';
+import type { DiagnosticResult } from '@/lib/summer-camp-store';
 import { useGameStore } from '@/lib/game-store';
 import { generateDiagnosticTagged } from '@/lib/summer-camp/questions';
 import type { DiagnosticDimension } from '@/lib/summer-camp/questions';
@@ -46,6 +47,8 @@ export default function SummerCampDiagnostic() {
   const [test, setTest] = useState<TestState | null>(null);
   const [input, setInput] = useState('');
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
+  // 本地缓存本次诊断结果，避免 store 更新时序导致 result 为 null
+  const [localResult, setLocalResult] = useState<DiagnosticResult | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // pre or post?  pre if not done, else post (only allow post near end)
@@ -112,6 +115,7 @@ export default function SummerCampDiagnostic() {
 
     if (isPost) setDiagnosticPost(result);
     else setDiagnosticPre(result);
+    setLocalResult(result);
     setStage('result');
   }, [isPost, setDiagnosticPre, setDiagnosticPost]);
 
@@ -242,7 +246,19 @@ export default function SummerCampDiagnostic() {
 
   // ── RESULT ──
   if (stage === 'result' && test) {
-    const result = isPost ? camp.diagnosticPost! : camp.diagnosticPre!;
+    // 优先用本地缓存的结果，回退到 store，避免 store 更新时序导致 null
+    const result = localResult ?? (isPost ? camp.diagnosticPost : camp.diagnosticPre);
+    if (!result) {
+      // 极端情况下仍未拿到结果，显示加载中
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[#F7F8FC]">
+          <div className="text-center">
+            <div className="text-4xl mb-3 animate-bounce">📊</div>
+            <p className="text-sm text-gray-500">正在生成报告...</p>
+          </div>
+        </div>
+      );
+    }
     const totalTimeMs = Date.now() - test.startTime;
     const accuracy = result.accuracy;
     const isGood = accuracy >= 75;

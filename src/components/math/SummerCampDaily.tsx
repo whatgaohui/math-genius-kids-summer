@@ -401,8 +401,11 @@ export default function SummerCampDaily() {
     const totalQuestions = baseTotal + speedSession.questions.length;
     const accuracy = Math.round((totalCorrect / totalQuestions) * 100);
     const stars = calculateStars(totalCorrect, totalQuestions);
+    // 优先用已保存记录，回退到 session 实际数据，避免 store 时序导致 totalTime 为 0
     const savedRecord = camp.completedDays[plan.day];
-    const totalTime = (savedRecord?.baseTimeMs ?? 0) + (savedRecord?.speedTimeMs ?? 0);
+    const baseTimeMs = savedRecord?.baseTimeMs ?? (Date.now() - baseSession.startTime);
+    const speedTimeMs = savedRecord?.speedTimeMs ?? (plan.speedSeconds * 1000);
+    const totalTime = baseTimeMs + speedTimeMs;
     const isBest = accuracy >= 90;
 
     return (
