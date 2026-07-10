@@ -12,6 +12,7 @@ import { playClickSound } from '@/lib/sound';
 import { getCurrentRank, getNextRank, getUnlockedBonusTitles } from '@/lib/rank-system';
 import { useLearningGoalsStore } from '@/lib/learning-goals';
 import { getPendingReviews } from '@/lib/error-book';
+import { useSummerCampStore, getCompletedDayCount } from '@/lib/summer-camp-store';
 import BottomNav from './BottomNav';
 
 // ─── Animations ─────────────────────────────────────────────────────────────
@@ -23,6 +24,76 @@ const fadeUp = {
     transition: { delay: i * 0.06, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
   }),
 };
+
+// ─── Summer Camp Banner ─────────────────────────────────────────────────────
+
+function SummerCampBanner() {
+  const setCurrentView = useGameStore((s) => s.setCurrentView);
+  const camp = useSummerCampStore();
+  const completedCount = getCompletedDayCount(camp);
+
+  if (!camp.enrolled) {
+    return (
+      <button
+        onClick={() => { playClickSound(); setCurrentView('summer-camp'); }}
+        className="w-full relative overflow-hidden rounded-2xl p-4 text-left active:scale-[0.98] transition-transform shadow-lg"
+        style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #EF4444 60%, #8B5CF6 100%)' }}
+      >
+        <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-white/10 -translate-y-1/3 translate-x-1/4" />
+        <div className="relative z-10 flex items-center gap-3">
+          <motion.div
+            className="text-4xl"
+            animate={{ y: [0, -4, 0], rotate: [0, 8, -8, 0] }}
+            transition={{ duration: 2.5, repeat: Infinity }}
+          >🏰</motion.div>
+          <div className="flex-1">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <h3 className="text-sm font-black text-white">暑期数学突击训练营</h3>
+              <span className="text-[9px] bg-white/25 text-white rounded-full px-1.5 py-0.5 font-bold">HOT</span>
+            </div>
+            <p className="text-[11px] text-white/85">60天 · 20/100以内加减法 · 系统突击</p>
+            <p className="text-[10px] text-white/70 mt-1">3年级数学分水岭，趁暑假打牢基础 →</p>
+          </div>
+          <Sparkles className="w-5 h-5 text-white/80 flex-shrink-0" />
+        </div>
+      </button>
+    );
+  }
+
+  // enrolled — show progress
+  const progressPct = Math.round((completedCount / 60) * 100);
+  return (
+    <button
+      onClick={() => { playClickSound(); setCurrentView('summer-camp'); }}
+      className="w-full relative overflow-hidden rounded-2xl p-4 text-left active:scale-[0.98] transition-transform shadow-md bg-white"
+    >
+      <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full" style={{ background: 'linear-gradient(135deg, #F59E0B20, #EF444420)' }} />
+      <div className="relative z-10 flex items-center gap-3">
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#F59E0B] to-[#EF4444] flex items-center justify-center text-2xl flex-shrink-0">
+          🏰
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-1">
+            <h3 className="text-sm font-black text-gray-800">暑期训练营进行中</h3>
+            <span className="text-[9px] bg-[#F59E0B]/15 text-[#F59E0B] rounded-full px-1.5 py-0.5 font-bold">Day {camp.currentDay}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full rounded-full bg-gradient-to-r from-[#F59E0B] to-[#EF4444]"
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPct}%` }}
+                transition={{ duration: 1 }}
+              />
+            </div>
+            <span className="text-[10px] font-bold text-gray-500">{completedCount}/60</span>
+          </div>
+          <p className="text-[10px] text-gray-400 mt-1">点击继续今日训练 →</p>
+        </div>
+      </div>
+    </button>
+  );
+}
 
 // ─── Component ─────────────────────────────────────────────────────────────
 
@@ -234,6 +305,11 @@ export default function HomePage() {
             </div>
           )}
         </button>
+      </motion.div>
+
+      {/* ═══════════════════ SUMMER CAMP BANNER ═══════════════════ */}
+      <motion.div custom={2} variants={fadeUp} initial="hidden" animate="visible" className="mx-auto max-w-md px-4 mb-4">
+        <SummerCampBanner />
       </motion.div>
 
       {/* ═══════════════════ SUBJECTS ═══════════════════ */}

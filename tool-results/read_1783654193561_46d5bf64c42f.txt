@@ -1,0 +1,944 @@
+     1→// Main game store for 学习小达人 (Learning Genius)
+     2→'use client';
+     3→
+     4→import { create } from 'zustand';
+     5→import { persist } from 'zustand/middleware';
+     6→import type { MathQuestion, Operation, Difficulty } from './math-utils';
+     7→import type { ChineseQuestion, ChineseMode } from './chinese-utils';
+     8→import type { EnglishQuestion, EnglishMode } from './english-utils';
+     9→import { generateQuestions, calculateStars, calculateXP, calculateLevel } from './math-utils';
+    10→import { generateCurriculumQuestions, type Grade, type Semester } from './math-curriculum';
+    11→import { computeUnlockedAchievements } from './achievements';
+    12→import type { PracticeRecordSummary } from './achievements';
+    13→import { usePetStore, type PracticeReward, getCoinBonusPercent, getCriticalHitChance, getPetTalent } from './pet-store';
+    14→import { useLearningGoalsStore } from './learning-goals';
+    15→
+    16→// ─── Types ──────────────────────────────────────────────────────────────────
+    17→
+    18→export type Subject = 'math' | 'chinese' | 'english';
+    19→
+    20→export interface PracticeRecord {
+    21→  date: string;
+    22→  correct: number;
+    23→  total: number;
+    24→  timeMs: number;
+    25→  stars: number;
+    26→  xp: number;
+    27→  operation: string;
+    28→  difficulty: string;
+    29→  mode: string;
+    30→  subject: Subject;
+    31→}
+    32→
+    33→export type GameMode = 'free' | 'speed' | 'adventure' | 'daily';
+    34→
+    35→interface GameSessionState {
+    36→  // Questions
+    37→  questions: MathQuestion[] | ChineseQuestion[] | EnglishQuestion[];
+    38→  currentQuestionIndex: number;
+    39→  sessionStartTime: number;
+    40→  questionStartTime: number;
+    41→
+    42→  // Session stats
+    43→  sessionCorrect: number;
+    44→  sessionWrong: number;
+    45→  sessionTimeMs: number;
+    46→  sessionStars: number;
+    47→  sessionMaxCombo: number;
+    48→  sessionCurrentCombo: number;
+    49→  sessionXP: number;
+    50→
+    51→  // Session config
+    52→  sessionMode: GameMode;
+    53→  sessionSubject: Subject;
+    54→  sessionOperation: string;
+    55→  sessionDifficulty: string;
+    56→  sessionQuestionCount: number;
+    57→
+    58→  // Speed mode
+    59→  speedTimeLimit: number; // seconds
+    60→
+    61→  // Daily challenge
+    62→  isDailyChallenge: boolean;
+    63→}
+    64→
+    65→// ─── State ──────────────────────────────────────────────────────────────────
+    66→
+    67→interface GameState {
+    68→  // Player info
+    69→  playerName: string;
+    70→  playerAvatar: string;
+    71→  playerLevel: number;
+    72→  totalStars: number;
+    73→  totalXP: number;
+    74→  streak: number;
+    75→  lastPracticeDate: string;
+    76→
+    77→  // Navigation
+    78→  currentSubject: Subject;
+    79→  currentView: string;
+    80→
+    81→  // Free practice settings
+    82→  selectedOperation: Operation;
+    83→  selectedDifficulty: Difficulty;
+    84→
+    85→  // Speed challenge settings
+    86→  speedTimeLimit: number;
+    87→  speedOperation: Operation;
+    88→
+    89→  // Adventure mode (math)
+    90→  adventureLevel: number;
+    91→  adventureStars: Record<number, number>;
+    92→
+    93→  // Adventure mode (chinese)
+    94→  chineseAdventureLevel: number;
+    95→  chineseAdventureStars: Record<number, number>;
+    96→
+    97→  // Adventure mode (english)
+    98→  englishAdventureLevel: number;
+    99→  englishAdventureStars: Record<number, number>;
+   100→
+   101→  // Speed challenge config per subject
+   102→  chineseSpeedTimeLimit: number;
+   103→  englishSpeedTimeLimit: number;
+   104→
+   105→  // Last game info
+   106→  lastGameSource: string;
+   107→  lastLevelName: string;
+   108→  lastLevelEmoji: string;
+   109→
+   110→  // Current game session
+   111→  session: GameSessionState | null;
+   112→
+   113→  // Last session result (saved before session is cleared)
+   114→  lastResult: {
+   115→    correct: number;
+   116→    wrong: number;
+   117→    total: number;
+   118→    timeMs: number;
+   119→    stars: number;
+   120→    xp: number;
+   121→    maxCombo: number;
+   122→    mode: string;
+   123→    operation: string;
+   124→    difficulty: string;
+   125→    subject: Subject;
+   126→    coinsEarned: number;
+   127→    petXPEarned: number;
+   128→    isCriticalHit: boolean;
+   129→    // Bonus breakdown for display
+   130→    bonusDetails?: {
+   131→      base: number;
+   132→      star: number;
+   133→      combo: number;
+   134→      perfect: number;
+   135→      speed: number;
+   136→      streak: number;
+   137→      petBonus: number;
+   138→      critical: number;
+   139→      petLevel: number;
+   140→      coinBonusPercent: number;
+   141→      critChance: number;
+   142→    };
+   143→  } | null;
+   144→
+   145→  // Daily challenge
+   146→  dailyChallengeCompletedDates: string[];
+   147→
+   148→  // Practice history
+   149→  practiceHistory: PracticeRecord[];
+   150→
+   151→  // Achievements
+   152→  unlockedAchievements: string[];
+   153→
+   154→  // Sound
+   155→  soundEnabled: boolean;
+   156→
+   157→  // Curriculum settings
+   158→  selectedMathGrade: number;    // 1-6, 0 = not set
+   159→  selectedMathSemester: string; // '上册' | '下册' | ''
+   160→  selectedChineseGrade: number;
+   161→  selectedChineseSemester: string;
+   162→  selectedEnglishGrade: number;
+   163→  selectedEnglishSemester: string;
+   164→}
+   165→
+   166→// ─── Actions ────────────────────────────────────────────────────────────────
+   167→
+   168→interface GameActions {
+   169→  // Navigation
+   170→  setCurrentView: (view: string) => void;
+   171→  setCurrentSubject: (subject: Subject) => void;
+   172→
+   173→  // Player
+   174→  setPlayerName: (name: string) => void;
+   175→  setPlayerAvatar: (avatar: string) => void;
+   176→  toggleSound: () => void;
+   177→
+   178→  // Settings
+   179→  setSelectedOperation: (op: Operation) => void;
+   180→  setSelectedDifficulty: (diff: Difficulty) => void;
+   181→  setSpeedTimeLimit: (seconds: number) => void;
+   182→  setSpeedOperation: (op: Operation) => void;
+   183→
+   184→  // Curriculum
+   185→  setMathGrade: (grade: number, semester: string) => void;
+   186→  setChineseGrade: (grade: number, semester: string) => void;
+   187→  setEnglishGrade: (grade: number, semester: string) => void;
+   188→
+   189→  // Adventure (math)
+   190→  setAdventureLevel: (level: number) => void;
+   191→  setAdventureStars: (level: number, stars: number) => void;
+   192→
+   193→  // Adventure (chinese)
+   194→  setChineseAdventureLevel: (level: number) => void;
+   195→  setChineseAdventureStars: (level: number, stars: number) => void;
+   196→
+   197→  // Adventure (english)
+   198→  setEnglishAdventureLevel: (level: number) => void;
+   199→  setEnglishAdventureStars: (level: number, stars: number) => void;
+   200→
+   201→  // Speed challenge config per subject
+   202→  setChineseSpeedTimeLimit: (seconds: number) => void;
+   203→  setEnglishSpeedTimeLimit: (seconds: number) => void;
+   204→
+   205→  // ── Math Session ──
+   206→  startMathSession: (mode: GameMode, operation?: Operation, difficulty?: Difficulty, count?: number) => void;
+   207→  nextQuestion: () => void;
+   208→  answerQuestion: (questionId: string, answer: number | boolean, timeMs: number) => void;
+   209→  advanceToNextOrEnd: () => 'next' | 'end';
+   210→  endSession: () => PracticeRecord | null;
+   211→  updateSessionMaxCombo: () => void;
+   212→  resetGame: () => void;
+   213→
+   214→  // ── Chinese/English Session ──
+   215→  startChineseSession: (mode: ChineseMode, grade: number, count?: number) => void;
+   216→  startEnglishSession: (mode: EnglishMode, grade: number, count?: number) => void;
+   217→  completeSubjectSession: (params: {
+   218→    correct: number;
+   219→    total: number;
+   220→    timeMs: number;
+   221→    maxCombo: number;
+   222→    subject: Subject;
+   223→    mode: string;
+   224→    difficulty: string;
+   225→    floorLevel?: number;
+   226→  }) => { record: PracticeRecord; reward: PracticeReward } | null;
+   227→
+   228→  // ── Achievements ──
+   229→  refreshAchievements: () => string[];
+   230→
+   231→  // ── Utilities ──
+   232→  clearHistory: () => void;
+   233→  updateStreak: () => void;
+   234→  getTodayStr: () => string;
+   235→  getBestSessionMaxCombo: () => number;
+   236→}
+   237→
+   238→// ─── Helpers ────────────────────────────────────────────────────────────────
+   239→
+   240→function getTodayStr(): string {
+   241→  return new Date().toISOString().split('T')[0];
+   242→}
+   243→
+   244→function getOperationForRecord(operation: string, mode: ChineseMode | EnglishMode | string): string {
+   245→  if (operation) return operation;
+   246→  return mode;
+   247→}
+   248→
+   249→// ─── Store ──────────────────────────────────────────────────────────────────
+   250→
+   251→export const useGameStore = create<GameState & GameActions>()(
+   252→  persist(
+   253→    (set, get) => ({
+   254→      // ── Initial State ──
+   255→      playerName: '',
+   256→      playerAvatar: '😀',
+   257→      playerLevel: 1,
+   258→      totalStars: 0,
+   259→      totalXP: 0,
+   260→      streak: 0,
+   261→      lastPracticeDate: '',
+   262→
+   263→      currentSubject: 'math',
+   264→      currentView: 'home',
+   265→
+   266→      selectedOperation: 'add',
+   267→      selectedDifficulty: 'easy',
+   268→
+   269→      speedTimeLimit: 60,
+   270→      speedOperation: 'add',
+   271→
+   272→      adventureLevel: 1,
+   273→      adventureStars: {},
+   274→
+   275→      chineseAdventureLevel: 1,
+   276→      chineseAdventureStars: {},
+   277→
+   278→      englishAdventureLevel: 1,
+   279→      englishAdventureStars: {},
+   280→
+   281→      chineseSpeedTimeLimit: 60,
+   282→      englishSpeedTimeLimit: 60,
+   283→
+   284→      lastGameSource: '',
+   285→      lastLevelName: '',
+   286→      lastLevelEmoji: '',
+   287→
+   288→      session: null,
+   289→
+   290→      lastResult: null,
+   291→
+   292→      dailyChallengeCompletedDates: [],
+   293→
+   294→      practiceHistory: [],
+   295→      unlockedAchievements: [],
+   296→
+   297→      soundEnabled: true,
+   298→
+   299→      selectedMathGrade: 0,
+   300→      selectedMathSemester: '',
+   301→      selectedChineseGrade: 0,
+   302→      selectedChineseSemester: '',
+   303→      selectedEnglishGrade: 0,
+   304→      selectedEnglishSemester: '',
+   305→
+   306→      // ── Navigation ──
+   307→      setCurrentView: (view: string) => set({ currentView: view }),
+   308→      setCurrentSubject: (subject: Subject) => set({ currentSubject: subject }),
+   309→
+   310→      // ── Player ──
+   311→      setPlayerName: (name: string) => set({ playerName: name }),
+   312→      setPlayerAvatar: (avatar: string) => set({ playerAvatar: avatar }),
+   313→      toggleSound: () => set((s) => ({ soundEnabled: !s.soundEnabled })),
+   314→
+   315→      // ── Settings ──
+   316→      setSelectedOperation: (op: Operation) => set({ selectedOperation: op }),
+   317→      setSelectedDifficulty: (diff: Difficulty) => set({ selectedDifficulty: diff }),
+   318→      setSpeedTimeLimit: (seconds: number) => set({ speedTimeLimit: seconds }),
+   319→      setSpeedOperation: (op: Operation) => set({ speedOperation: op }),
+   320→
+   321→      // ── Curriculum ──
+   322→      setMathGrade: (grade: number, semester: string) => set({ selectedMathGrade: grade, selectedMathSemester: semester }),
+   323→      setChineseGrade: (grade: number, semester: string) => set({ selectedChineseGrade: grade, selectedChineseSemester: semester }),
+   324→      setEnglishGrade: (grade: number, semester: string) => set({ selectedEnglishGrade: grade, selectedEnglishSemester: semester }),
+   325→
+   326→      // ── Adventure (Math) ──
+   327→      setAdventureLevel: (level: number) => set({ adventureLevel: level }),
+   328→      setAdventureStars: (level: number, stars: number) =>
+   329→        set((s) => ({
+   330→          adventureStars: {
+   331→            ...s.adventureStars,
+   332→            [level]: Math.max(s.adventureStars[level] ?? 0, stars),
+   333→          },
+   334→        })),
+   335→
+   336→      // ── Adventure (Chinese) ──
+   337→      setChineseAdventureLevel: (level: number) => set({ chineseAdventureLevel: level }),
+   338→      setChineseAdventureStars: (level: number, stars: number) =>
+   339→        set((s) => ({
+   340→          chineseAdventureStars: {
+   341→            ...s.chineseAdventureStars,
+   342→            [level]: Math.max(s.chineseAdventureStars[level] ?? 0, stars),
+   343→          },
+   344→        })),
+   345→
+   346→      // ── Adventure (English) ──
+   347→      setEnglishAdventureLevel: (level: number) => set({ englishAdventureLevel: level }),
+   348→      setEnglishAdventureStars: (level: number, stars: number) =>
+   349→        set((s) => ({
+   350→          englishAdventureStars: {
+   351→            ...s.englishAdventureStars,
+   352→            [level]: Math.max(s.englishAdventureStars[level] ?? 0, stars),
+   353→          },
+   354→        })),
+   355→
+   356→      // ── Speed config per subject ──
+   357→      setChineseSpeedTimeLimit: (seconds: number) => set({ chineseSpeedTimeLimit: seconds }),
+   358→      setEnglishSpeedTimeLimit: (seconds: number) => set({ englishSpeedTimeLimit: seconds }),
+   359→
+   360→      // ── Math Session ──
+   361→      startMathSession: (
+   362→        mode: GameMode,
+   363→        operation?: Operation,
+   364→        difficulty?: Difficulty,
+   365→        count: number = 10
+   366→      ) => {
+   367→        const state = get();
+   368→        const op = operation ?? state.selectedOperation;
+   369→        const diff = difficulty ?? state.selectedDifficulty;
+   370→
+   371→        // Question generation strategy:
+   372→        // - Adventure mode: always use level-defined operation/difficulty (never curriculum)
+   373→        // - Free/Speed mode with grade set: use curriculum-aligned questions
+   374→        // - Free/Speed mode without grade: use operation/difficulty-based generator
+   375→        let questions: MathQuestion[];
+   376→        const isAdventure = mode === 'adventure';
+   377→        const gradeSet = state.selectedMathGrade > 0 && state.selectedMathSemester;
+   378→
+   379→        if (isAdventure) {
+   380→          // Adventure mode always uses level-defined operation/difficulty
+   381→          questions = generateQuestions(op, diff, count);
+   382→        } else if (gradeSet) {
+   383→          // Free/Speed mode: use curriculum-aligned questions when grade/semester configured
+   384→          const curriculumQuestions = generateCurriculumQuestions(
+   385→            state.selectedMathGrade as Grade,
+   386→            state.selectedMathSemester as Semester,
+   387→            count
+   388→          );
+   389→          // Fall back to standard generator if curriculum returned nothing
+   390→          questions = curriculumQuestions.length > 0 ? curriculumQuestions : generateQuestions(op, diff, count);
+   391→        } else {
+   392→          questions = generateQuestions(op, diff, count);
+   393→        }
+   394→
+   395→        const session: GameSessionState = {
+   396→          questions,
+   397→          currentQuestionIndex: 0,
+   398→          sessionStartTime: Date.now(),
+   399→          questionStartTime: Date.now(),
+   400→          sessionCorrect: 0,
+   401→          sessionWrong: 0,
+   402→          sessionTimeMs: 0,
+   403→          sessionStars: 0,
+   404→          sessionMaxCombo: 0,
+   405→          sessionCurrentCombo: 0,
+   406→          sessionXP: 0,
+   407→          sessionMode: mode,
+   408→          sessionSubject: 'math',
+   409→          sessionOperation: op,
+   410→          sessionDifficulty: diff,
+   411→          sessionQuestionCount: count,
+   412→          speedTimeLimit: mode === 'speed' ? state.speedTimeLimit : 0,
+   413→          isDailyChallenge: mode === 'daily',
+   414→        };
+   415→
+   416→        set({ session });
+   417→      },
+   418→
+   419→      nextQuestion: () => {
+   420→        set((s) => {
+   421→          if (!s.session) return {};
+   422→          const nextIndex = s.session.currentQuestionIndex + 1;
+   423→          if (nextIndex >= s.session.questions.length) return {};
+   424→          return {
+   425→            session: {
+   426→              ...s.session,
+   427→              currentQuestionIndex: nextIndex,
+   428→              questionStartTime: Date.now(),
+   429→            },
+   430→          };
+   431→        });
+   432→      },
+   433→
+   434→      answerQuestion: (questionId: string, answer: number | boolean, timeMs: number) => {
+   435→        set((s) => {
+   436→          if (!s.session) return {};
+   437→
+   438→          const questions = s.session.questions as MathQuestion[];
+   439→          const qIndex = questions.findIndex((q) => q.id === questionId);
+   440→          if (qIndex === -1) return {};
+   441→
+   442→          const question = questions[qIndex];
+   443→          const isCorrect =
+   444→            typeof answer === 'boolean'
+   445→              ? answer === question.correctAnswer
+   446→              : Number(answer) === Number(question.correctAnswer);
+   447→
+   448→          const newQuestions = [...questions];
+   449→          newQuestions[qIndex] = {
+   450→            ...question,
+   451→            userAnswer: answer,
+   452→            isCorrect,
+   453→            timeMs,
+   454→          };
+   455→
+   456→          const newCorrect = s.session.sessionCorrect + (isCorrect ? 1 : 0);
+   457→          const newWrong = s.session.sessionWrong + (isCorrect ? 0 : 1);
+   458→          const newCombo = isCorrect ? s.session.sessionCurrentCombo + 1 : 0;
+   459→          const newMaxCombo = Math.max(s.session.sessionMaxCombo, newCombo);
+   460→
+   461→          return {
+   462→            session: {
+   463→              ...s.session,
+   464→              questions: newQuestions,
+   465→              sessionCorrect: newCorrect,
+   466→              sessionWrong: newWrong,
+   467→              sessionCurrentCombo: newCombo,
+   468→              sessionMaxCombo: newMaxCombo,
+   469→              questionStartTime: Date.now(),
+   470→            },
+   471→          };
+   472→        });
+   473→      },
+   474→
+   475→      advanceToNextOrEnd: (): 'next' | 'end' => {
+   476→        const state = get();
+   477→        if (!state.session) return 'end';
+   478→        const nextIndex = state.session.currentQuestionIndex + 1;
+   479→        if (nextIndex >= state.session.questions.length) {
+   480→          return 'end';
+   481→        }
+   482→        set({
+   483→          session: {
+   484→            ...state.session,
+   485→            currentQuestionIndex: nextIndex,
+   486→            questionStartTime: Date.now(),
+   487→          },
+   488→        });
+   489→        return 'next';
+   490→      },
+   491→
+   492→      endSession: (): PracticeRecord | null => {
+   493→        const state = get();
+   494→        if (!state.session) return null;
+   495→
+   496→        const session = state.session;
+   497→        const totalTimeMs = Date.now() - session.sessionStartTime;
+   498→        const correct = session.sessionCorrect;
+   499→        const wrong = session.sessionWrong;
+   500→        const total = correct + wrong; // Actual answered count, not pool size
+   501→        const stars = calculateStars(correct, total);
+   502→        const xp = calculateXP(correct, total, totalTimeMs, stars, session.sessionMaxCombo);
+   503→
+   504→        const record: PracticeRecord = {
+   505→          date: getTodayStr(),
+   506→          correct,
+   507→          total,
+   508→          timeMs: totalTimeMs,
+   509→          stars,
+   510→          xp,
+   511→          operation: session.sessionOperation,
+   512→          difficulty: session.sessionDifficulty,
+   513→          mode: session.sessionMode,
+   514→          subject: session.sessionSubject,
+   515→        };
+   516→
+   517→        // Update totals
+   518→        const newTotalStars = state.totalStars + stars;
+   519→        const newTotalXP = state.totalXP + xp;
+   520→        const newPlayerLevel = calculateLevel(newTotalXP);
+   521→        const newHistory = [record, ...state.practiceHistory].slice(0, 200);
+   522→
+   523→        // Update streak
+   524→        const today = getTodayStr();
+   525→        let newStreak = state.streak;
+   526→        if (state.lastPracticeDate === today) {
+   527→          // Already practiced today, keep streak
+   528→        } else {
+   529→          const lastDate = new Date(state.lastPracticeDate);
+   530→          const todayDate = new Date(today);
+   531→          const diffDays = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+   532→          if (diffDays === 1) {
+   533→            newStreak += 1;
+   534→          } else if (diffDays > 1) {
+   535→            newStreak = 1;
+   536→          } else {
+   537→            newStreak = 1;
+   538→          }
+   539→        }
+   540→
+   541→        // Daily challenge tracking
+   542→        let newDailyDates = state.dailyChallengeCompletedDates;
+   543→        if (session.isDailyChallenge && !state.dailyChallengeCompletedDates.includes(today)) {
+   544→          newDailyDates = [...state.dailyChallengeCompletedDates, today];
+   545→        }
+   546→
+   547→        // Award coins & pet XP
+   548→        const petStore = usePetStore.getState();
+   549→        const reward = petStore.calculatePracticeReward({
+   550→          correct,
+   551→          total,
+   552→          stars,
+   553→          maxCombo: session.sessionMaxCombo,
+   554→          timeMs: totalTimeMs,
+   555→          playerStreak: newStreak,
+   556→          subject: session.sessionSubject,
+   557→        });
+   558→        petStore.awardPracticeReward(reward);
+   559→
+   560→        // Save result before clearing session (for ResultPage to read)
+   561→        const resultData = {
+   562→          correct,
+   563→          wrong: total - correct,
+   564→          total,
+   565→          timeMs: totalTimeMs,
+   566→          stars,
+   567→          xp,
+   568→          maxCombo: session.sessionMaxCombo,
+   569→          mode: session.sessionMode,
+   570→          operation: session.sessionOperation,
+   571→          difficulty: session.sessionDifficulty,
+   572→          subject: session.sessionSubject,
+   573→          coinsEarned: reward.coins,
+   574→          petXPEarned: reward.petXP,
+   575→          isCriticalHit: reward.isCriticalHit,
+   576→          bonusDetails: {
+   577→            ...reward.bonuses,
+   578→            petLevel: petStore.petLevel,
+   579→            coinBonusPercent: getCoinBonusPercent(petStore.petLevel, petStore.petType),
+   580→            critChance: getCriticalHitChance(petStore.petLevel, petStore.petType),
+   581→            talentBonus: reward.talentBonus,
+   582→            talentName: reward.talentName,
+   583→            talentEmoji: reward.talentEmoji,
+   584→          },
+   585→        };
+   586→
+   587→        set({
+   588→          session: null,
+   589→          lastResult: resultData,
+   590→          totalStars: newTotalStars,
+   591→          totalXP: newTotalXP,
+   592→          playerLevel: newPlayerLevel,
+   593→          streak: newStreak,
+   594→          lastPracticeDate: today,
+   595→          practiceHistory: newHistory,
+   596→          dailyChallengeCompletedDates: newDailyDates,
+   597→        });
+   598→
+   599→        get().refreshAchievements();
+   600→
+   601→        // Update learning goals progress
+   602→        const goalsStore = useLearningGoalsStore.getState();
+   603→        goalsStore.updateGoalProgress(1, total, stars);
+   604→
+   605→        return record;
+   606→      },
+   607→
+   608→      updateSessionMaxCombo: () => {
+   609→        set((s) => {
+   610→          if (!s.session) return {};
+   611→          return {
+   612→            session: {
+   613→              ...s.session,
+   614→              sessionMaxCombo: Math.max(
+   615→                s.session.sessionMaxCombo,
+   616→                s.session.sessionCurrentCombo
+   617→              ),
+   618→            },
+   619→          };
+   620→        });
+   621→      },
+   622→
+   623→      resetGame: () => {
+   624→        set({ session: null });
+   625→      },
+   626→
+   627→      // ── Chinese Session ──
+   628→      startChineseSession: (mode: ChineseMode, _grade: number, count: number = 10) => {
+   629→        // Import dynamically to avoid issues
+   630→        import('./chinese-utils').then(({ generateChineseQuestions }) => {
+   631→          const questions = generateChineseQuestions(mode, _grade as 1|2|3|4|5|6, count);
+   632→          const session: GameSessionState = {
+   633→            questions,
+   634→            currentQuestionIndex: 0,
+   635→            sessionStartTime: Date.now(),
+   636→            questionStartTime: Date.now(),
+   637→            sessionCorrect: 0,
+   638→            sessionWrong: 0,
+   639→            sessionTimeMs: 0,
+   640→            sessionStars: 0,
+   641→            sessionMaxCombo: 0,
+   642→            sessionCurrentCombo: 0,
+   643→            sessionXP: 0,
+   644→            sessionMode: 'free',
+   645→            sessionSubject: 'chinese',
+   646→            sessionOperation: mode,
+   647→            sessionDifficulty: String(_grade),
+   648→            sessionQuestionCount: count,
+   649→            speedTimeLimit: 0,
+   650→            isDailyChallenge: false,
+   651→          };
+   652→          set({ session });
+   653→        });
+   654→      },
+   655→
+   656→      // ── English Session ──
+   657→      startEnglishSession: (mode: EnglishMode, _grade: number, count: number = 10) => {
+   658→        import('./english-utils').then(({ generateEnglishQuestions }) => {
+   659→          const questions = generateEnglishQuestions(mode, _grade as 1 | 2 | 3 | 4 | 5 | 6, count);
+   660→          const session: GameSessionState = {
+   661→            questions,
+   662→            currentQuestionIndex: 0,
+   663→            sessionStartTime: Date.now(),
+   664→            questionStartTime: Date.now(),
+   665→            sessionCorrect: 0,
+   666→            sessionWrong: 0,
+   667→            sessionTimeMs: 0,
+   668→            sessionStars: 0,
+   669→            sessionMaxCombo: 0,
+   670→            sessionCurrentCombo: 0,
+   671→            sessionXP: 0,
+   672→            sessionMode: 'free',
+   673→            sessionSubject: 'english',
+   674→            sessionOperation: mode,
+   675→            sessionDifficulty: String(_grade),
+   676→            sessionQuestionCount: count,
+   677→            speedTimeLimit: 0,
+   678→            isDailyChallenge: false,
+   679→          };
+   680→          set({ session });
+   681→        });
+   682→      },
+   683→
+   684→      // ── Complete subject session (for chinese/english with external answer tracking) ──
+   685→      // Does NOT require an active session — all info passed via params
+   686→      completeSubjectSession: (params: {
+   687→        correct: number;
+   688→        total: number;
+   689→        timeMs: number;
+   690→        maxCombo: number;
+   691→        subject: Subject;
+   692→        mode: string;
+   693→        difficulty: string;
+   694→        floorLevel?: number;
+   695→      }): { record: PracticeRecord; reward: PracticeReward } | null => {
+   696→        const state = get();
+   697→        const { correct, total, timeMs, maxCombo, subject, mode, difficulty, floorLevel } = params;
+   698→
+   699→        if (total === 0) return null;
+   700→
+   701→        const stars = calculateStars(correct, total);
+   702→        const xp = calculateXP(correct, total, timeMs, stars, maxCombo);
+   703→
+   704→        const record: PracticeRecord = {
+   705→          date: getTodayStr(),
+   706→          correct,
+   707→          total,
+   708→          timeMs,
+   709→          stars,
+   710→          xp,
+   711→          operation: mode,
+   712→          difficulty,
+   713→          mode,
+   714→          subject,
+   715→        };
+   716→
+   717→        const newTotalStars = state.totalStars + stars;
+   718→        const newTotalXP = state.totalXP + xp;
+   719→        const newPlayerLevel = calculateLevel(newTotalXP);
+   720→        const newHistory = [record, ...state.practiceHistory].slice(0, 200);
+   721→
+   722→        const today = getTodayStr();
+   723→        let newStreak = state.streak;
+   724→        if (state.lastPracticeDate !== today) {
+   725→          const lastDate = state.lastPracticeDate
+   726→            ? new Date(state.lastPracticeDate)
+   727→            : new Date(0);
+   728→          const todayDate = new Date(today);
+   729→          const diffDays = Math.floor(
+   730→            (todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
+   731→          );
+   732→          if (diffDays === 1) {
+   733→            newStreak += 1;
+   734→          } else {
+   735→            newStreak = 1;
+   736→          }
+   737→        }
+   738→
+   739→        // Award coins & pet XP via pet store (pass mode & floorLevel for multiplier)
+   740→        const petStore = usePetStore.getState();
+   741→        const reward = petStore.calculatePracticeReward({
+   742→          correct,
+   743→          total,
+   744→          stars,
+   745→          maxCombo,
+   746→          timeMs,
+   747→          playerStreak: newStreak,
+   748→          subject,
+   749→          mode,
+   750→          floorLevel,
+   751→        });
+   752→        petStore.awardPracticeReward(reward);
+   753→
+   754→        // Save lastResult for result page
+   755→        const resultData = {
+   756→          correct,
+   757→          wrong: total - correct,
+   758→          total,
+   759→          timeMs,
+   760→          stars,
+   761→          xp,
+   762→          maxCombo,
+   763→          mode,
+   764→          operation: mode,
+   765→          difficulty,
+   766→          subject,
+   767→          coinsEarned: reward.coins,
+   768→          petXPEarned: reward.petXP,
+   769→          isCriticalHit: reward.isCriticalHit,
+   770→          bonusDetails: {
+   771→            ...reward.bonuses,
+   772→            petLevel: petStore.petLevel,
+   773→            coinBonusPercent: getCoinBonusPercent(petStore.petLevel, petStore.petType),
+   774→            critChance: getCriticalHitChance(petStore.petLevel, petStore.petType),
+   775→            talentBonus: reward.talentBonus,
+   776→            talentName: reward.talentName,
+   777→            talentEmoji: reward.talentEmoji,
+   778→          },
+   779→        };
+   780→
+   781→        // Build the base update object
+   782→        const baseUpdate: Partial<GameState> = {
+   783→          session: null,
+   784→          lastResult: resultData,
+   785→          totalStars: newTotalStars,
+   786→          totalXP: newTotalXP,
+   787→          playerLevel: newPlayerLevel,
+   788→          streak: newStreak,
+   789→          lastPracticeDate: today,
+   790→          practiceHistory: newHistory,
+   791→        };
+   792→
+   793→        // Adventure progress tracking for chinese/english
+   794→        if (mode === 'adventure' && floorLevel !== undefined && floorLevel > 0) {
+   795→          if (subject === 'chinese') {
+   796→            // Update highest completed level
+   797→            if (floorLevel > state.chineseAdventureLevel) {
+   798→              baseUpdate.chineseAdventureLevel = floorLevel;
+   799→            }
+   800→            // Update stars for this floor (keep best)
+   801→            const currentStars = state.chineseAdventureStars[floorLevel] ?? 0;
+   802→            if (stars > currentStars) {
+   803→              baseUpdate.chineseAdventureStars = {
+   804→                ...state.chineseAdventureStars,
+   805→                [floorLevel]: stars,
+   806→              };
+   807→            }
+   808→          } else if (subject === 'english') {
+   809→            if (floorLevel > state.englishAdventureLevel) {
+   810→              baseUpdate.englishAdventureLevel = floorLevel;
+   811→            }
+   812→            const currentStars = state.englishAdventureStars[floorLevel] ?? 0;
+   813→            if (stars > currentStars) {
+   814→              baseUpdate.englishAdventureStars = {
+   815→                ...state.englishAdventureStars,
+   816→                [floorLevel]: stars,
+   817→              };
+   818→            }
+   819→          }
+   820→        }
+   821→
+   822→        set(baseUpdate);
+   823→
+   824→        get().refreshAchievements();
+   825→
+   826→        // Update learning goals progress
+   827→        const goalsStore = useLearningGoalsStore.getState();
+   828→        goalsStore.updateGoalProgress(1, total, stars);
+   829→
+   830→        return { record, reward };
+   831→      },
+   832→
+   833→      // ── Achievements ──
+   834→      refreshAchievements: (): string[] => {
+   835→        const state = get();
+   836→        const historySummary: PracticeRecordSummary[] = state.practiceHistory.map((r) => ({
+   837→          correct: r.correct,
+   838→          total: r.total,
+   839→          stars: r.stars,
+   840→          mode: r.mode,
+   841→          subject: r.subject,
+   842→        }));
+   843→
+   844→        const newAchievements = computeUnlockedAchievements({
+   845→          totalStars: state.totalStars,
+   846→          totalXP: state.totalXP,
+   847→          streak: state.streak,
+   848→          practiceHistory: historySummary,
+   849→          unlockedAchievements: state.unlockedAchievements,
+   850→          petLevel: 1, // Will be updated by pet store
+   851→          maxCombo: state.session?.sessionMaxCombo ?? state.practiceHistory.reduce((max, _r) => max, 0),
+   852→          adventureMaxFloor: state.adventureLevel,
+   853→          chineseAdventureMaxFloor: state.chineseAdventureLevel,
+   854→          englishAdventureMaxFloor: state.englishAdventureLevel,
+   855→        });
+   856→
+   857→        if (newAchievements.length > 0) {
+   858→          set({
+   859→            unlockedAchievements: [
+   860→              ...state.unlockedAchievements,
+   861→              ...newAchievements,
+   862→            ],
+   863→          });
+   864→        }
+   865→
+   866→        return newAchievements;
+   867→      },
+   868→
+   869→      // ── Utilities ──
+   870→      clearHistory: () => set({ practiceHistory: [] }),
+   871→
+   872→      updateStreak: () => {
+   873→        const state = get();
+   874→        const today = getTodayStr();
+   875→        if (state.lastPracticeDate === today) return;
+   876→
+   877→        const lastDate = state.lastPracticeDate
+   878→          ? new Date(state.lastPracticeDate)
+   879→          : new Date(0);
+   880→        const todayDate = new Date(today);
+   881→        const diffDays = Math.floor(
+   882→          (todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
+   883→        );
+   884→
+   885→        let newStreak = 1;
+   886→        if (diffDays === 1) {
+   887→          newStreak = state.streak + 1;
+   888→        }
+   889→
+   890→        set({ streak: newStreak, lastPracticeDate: today });
+   891→      },
+   892→
+   893→      getTodayStr: (): string => getTodayStr(),
+   894→
+   895→      getBestSessionMaxCombo: (): number => {
+   896→        const state = get();
+   897→        if (state.session) {
+   898→          return state.session.sessionMaxCombo;
+   899→        }
+   900→        // Look through history for best combo info (approximation)
+   901→        return 0;
+   902→      },
+   903→    }),
+   904→    {
+   905→      name: 'math-genius-game-store',
+   906→      partialize: (state) => ({
+   907→        // Only persist these fields
+   908→        playerName: state.playerName,
+   909→        playerAvatar: state.playerAvatar,
+   910→        playerLevel: state.playerLevel,
+   911→        totalStars: state.totalStars,
+   912→        totalXP: state.totalXP,
+   913→        streak: state.streak,
+   914→        lastPracticeDate: state.lastPracticeDate,
+   915→        selectedOperation: state.selectedOperation,
+   916→        selectedDifficulty: state.selectedDifficulty,
+   917→        speedTimeLimit: state.speedTimeLimit,
+   918→        speedOperation: state.speedOperation,
+   919→        adventureLevel: state.adventureLevel,
+   920→        adventureStars: state.adventureStars,
+   921→        chineseAdventureLevel: state.chineseAdventureLevel,
+   922→        chineseAdventureStars: state.chineseAdventureStars,
+   923→        englishAdventureLevel: state.englishAdventureLevel,
+   924→        englishAdventureStars: state.englishAdventureStars,
+   925→        chineseSpeedTimeLimit: state.chineseSpeedTimeLimit,
+   926→        englishSpeedTimeLimit: state.englishSpeedTimeLimit,
+   927→        lastGameSource: state.lastGameSource,
+   928→        lastLevelName: state.lastLevelName,
+   929→        lastLevelEmoji: state.lastLevelEmoji,
+   930→        dailyChallengeCompletedDates: state.dailyChallengeCompletedDates,
+   931→        practiceHistory: state.practiceHistory,
+   932→        unlockedAchievements: state.unlockedAchievements,
+   933→        soundEnabled: state.soundEnabled,
+   934→        selectedMathGrade: state.selectedMathGrade,
+   935→        selectedMathSemester: state.selectedMathSemester,
+   936→        selectedChineseGrade: state.selectedChineseGrade,
+   937→        selectedChineseSemester: state.selectedChineseSemester,
+   938→        selectedEnglishGrade: state.selectedEnglishGrade,
+   939→        selectedEnglishSemester: state.selectedEnglishSemester,
+   940→      }),
+   941→    }
+   942→  )
+   943→);
+   944→

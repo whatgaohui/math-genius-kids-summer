@@ -1,0 +1,1236 @@
+     1→// Math curriculum question bank aligned with 人教版 (PEP) Chinese elementary curriculum, grades 1-6
+     2→// Provides curriculum-aligned question generation with per-topic constraints.
+     3→
+     4→import type { MathQuestion, Operation, Difficulty } from './math-utils';
+     5→
+     6→// ─── Core Types ──────────────────────────────────────────────────────────────
+     7→
+     8→export type Grade = 1 | 2 | 3 | 4 | 5 | 6;
+     9→export type Semester = '上册' | '下册';
+    10→
+    11→export interface TopicConstraints {
+    12→  noCarry?: boolean;
+    13→  noBorrow?: boolean;
+    14→  withinTable?: boolean;
+    15→  maxDigitSum?: number;
+    16→  resultPositive?: boolean;
+    17→  allowDecimals?: boolean;
+    18→  decimalPlaces?: number;
+    19→}
+    20→
+    21→export interface CurriculumTopic {
+    22→  id: string;
+    23→  grade: Grade;
+    24→  semester: Semester;
+    25→  name: string;
+    26→  description: string;
+    27→  emoji: string;
+    28→  category: string;
+    29→  operations: Operation[];
+    30→  difficulty: Difficulty;
+    31→  numRange: [number, number];
+    32→  constraints: TopicConstraints;
+    33→  questionCount: number;
+    34→}
+    35→
+    36→// ─── Helpers ─────────────────────────────────────────────────────────────────
+    37→
+    38→function randInt(min: number, max: number): number {
+    39→  return Math.floor(Math.random() * (max - min + 1)) + min;
+    40→}
+    41→
+    42→function pickRandom<T>(arr: T[]): T {
+    43→  return arr[Math.floor(Math.random() * arr.length)];
+    44→}
+    45→
+    46→let _idCounter = 0;
+    47→function genId(): string {
+    48→  return `cq-${Date.now()}-${++_idCounter}`;
+    49→}
+    50→
+    51→const GRADE_LABELS: Record<Grade, string> = {
+    52→  1: '一年级',
+    53→  2: '二年级',
+    54→  3: '三年级',
+    55→  4: '四年级',
+    56→  5: '五年级',
+    57→  6: '六年级',
+    58→};
+    59→
+    60→// ─── Curriculum Topic Definitions (人教版 Alignment) ─────────────────────────
+    61→
+    62→const TOPICS: CurriculumTopic[] = [
+    63→  // ── Grade 1 上册 ─────────────────────────────────────────────────────────
+    64→  {
+    65→    id: 'g1s1-add-within-10',
+    66→    grade: 1, semester: '上册',
+    67→    name: '10以内加法',
+    68→    description: '10以内的不进位加法',
+    69→    emoji: '🔢',
+    70→    category: '数的运算',
+    71→    operations: ['add'],
+    72→    difficulty: 'easy',
+    73→    numRange: [0, 10],
+    74→    constraints: { noCarry: true, resultPositive: true },
+    75→    questionCount: 10,
+    76→  },
+    77→  {
+    78→    id: 'g1s1-sub-within-10',
+    79→    grade: 1, semester: '上册',
+    80→    name: '10以内减法',
+    81→    description: '10以内的不退位减法',
+    82→    emoji: '➖',
+    83→    category: '数的运算',
+    84→    operations: ['subtract'],
+    85→    difficulty: 'easy',
+    86→    numRange: [0, 10],
+    87→    constraints: { noBorrow: true, resultPositive: true },
+    88→    questionCount: 10,
+    89→  },
+    90→
+    91→  // ── Grade 1 下册 ─────────────────────────────────────────────────────────
+    92→  {
+    93→    id: 'g1s2-add-within-20',
+    94→    grade: 1, semester: '下册',
+    95→    name: '20以内进位加法',
+    96→    description: '20以内的进位加法',
+    97→    emoji: '➕',
+    98→    category: '数的运算',
+    99→    operations: ['add'],
+   100→    difficulty: 'easy',
+   101→    numRange: [1, 20],
+   102→    constraints: { resultPositive: true },
+   103→    questionCount: 10,
+   104→  },
+   105→  {
+   106→    id: 'g1s2-sub-within-20',
+   107→    grade: 1, semester: '下册',
+   108→    name: '20以内退位减法',
+   109→    description: '20以内的退位减法',
+   110→    emoji: '🔻',
+   111→    category: '数的运算',
+   112→    operations: ['subtract'],
+   113→    difficulty: 'easy',
+   114→    numRange: [1, 20],
+   115→    constraints: { resultPositive: true },
+   116→    questionCount: 10,
+   117→  },
+   118→
+   119→  // ── Grade 2 上册 ─────────────────────────────────────────────────────────
+   120→  {
+   121→    id: 'g2s1-add-sub-within-100',
+   122→    grade: 2, semester: '上册',
+   123→    name: '100以内加减法',
+   124→    description: '100以内的加减法（基础）',
+   125→    emoji: '✖️',
+   126→    category: '数的运算',
+   127→    operations: ['add', 'subtract'],
+   128→    difficulty: 'easy',
+   129→    numRange: [1, 100],
+   130→    constraints: { noCarry: true, noBorrow: true, resultPositive: true },
+   131→    questionCount: 10,
+   132→  },
+   133→  {
+   134→    id: 'g2s1-mul-table',
+   135→    grade: 2, semester: '上册',
+   136→    name: '乘法口诀表',
+   137→    description: '九九乘法表内的乘法',
+   138→    emoji: '✖️',
+   139→    category: '数的运算',
+   140→    operations: ['multiply'],
+   141→    difficulty: 'easy',
+   142→    numRange: [1, 9],
+   143→    constraints: { withinTable: true },
+   144→    questionCount: 12,
+   145→  },
+   146→
+   147→  // ── Grade 2 下册 ─────────────────────────────────────────────────────────
+   148→  {
+   149→    id: 'g2s2-div-table',
+   150→    grade: 2, semester: '下册',
+   151→    name: '表内除法',
+   152→    description: '利用乘法口诀求商',
+   153→    emoji: '➗',
+   154→    category: '数的运算',
+   155→    operations: ['divide'],
+   156→    difficulty: 'easy',
+   157→    numRange: [1, 9],
+   158→    constraints: { withinTable: true },
+   159→    questionCount: 12,
+   160→  },
+   161→  {
+   162→    id: 'g2s2-mix-basic',
+   163→    grade: 2, semester: '下册',
+   164→    name: '混合运算(基础)',
+   165→    description: '加减乘除混合，小数字',
+   166→    emoji: '🔀',
+   167→    category: '数的运算',
+   168→    operations: ['add', 'subtract', 'multiply', 'divide'],
+   169→    difficulty: 'easy',
+   170→    numRange: [1, 20],
+   171→    constraints: { withinTable: true },
+   172→    questionCount: 10,
+   173→  },
+   174→
+   175→  // ── Grade 3 上册 ─────────────────────────────────────────────────────────
+   176→  {
+   177→    id: 'g3s1-add-sub-within-10000',
+   178→    grade: 3, semester: '上册',
+   179→    name: '万以内加减法',
+   180→    description: '万以内的加减法',
+   181→    emoji: '🔢',
+   182→    category: '数的运算',
+   183→    operations: ['add', 'subtract'],
+   184→    difficulty: 'medium',
+   185→    numRange: [100, 10000],
+   186→    constraints: { resultPositive: true },
+   187→    questionCount: 8,
+   188→  },
+   189→  {
+   190→    id: 'g3s1-mul-multi-by-one',
+   191→    grade: 3, semester: '上册',
+   192→    name: '多位数乘一位数',
+   193→    description: '如 23 × 3、156 × 4',
+   194→    emoji: '✖️',
+   195→    category: '数的运算',
+   196→    operations: ['multiply'],
+   197→    difficulty: 'medium',
+   198→    numRange: [2, 9],
+   199→    constraints: {},
+   200→    questionCount: 8,
+   201→  },
+   202→
+   203→  // ── Grade 3 下册 ─────────────────────────────────────────────────────────
+   204→  {
+   205→    id: 'g3s2-div-two-by-one',
+   206→    grade: 3, semester: '下册',
+   207→    name: '两位数除以一位数',
+   208→    description: '如 84 ÷ 7',
+   209→    emoji: '➗',
+   210→    category: '数的运算',
+   211→    operations: ['divide'],
+   212→    difficulty: 'medium',
+   213→    numRange: [2, 9],
+   214→    constraints: {},
+   215→    questionCount: 8,
+   216→  },
+   217→  {
+   218→    id: 'g3s2-simple-fractions',
+   219→    grade: 3, semester: '下册',
+   220→    name: '简单分数',
+   221→    description: '分数初步认识与比较',
+   222→    emoji: '🍕',
+   223→    category: '分数与小数',
+   224→    operations: ['compare'],
+   225→    difficulty: 'easy',
+   226→    numRange: [1, 9],
+   227→    constraints: {},
+   228→    questionCount: 8,
+   229→  },
+   230→
+   231→  // ── Grade 4 上册 ─────────────────────────────────────────────────────────
+   232→  {
+   233→    id: 'g4s1-large-num-ops',
+   234→    grade: 4, semester: '上册',
+   235→    name: '大数认识与运算',
+   236→    description: '十万以内的加减法',
+   237→    emoji: '🔢',
+   238→    category: '数的运算',
+   239→    operations: ['add', 'subtract'],
+   240→    difficulty: 'hard',
+   241→    numRange: [1000, 100000],
+   242→    constraints: { resultPositive: true },
+   243→    questionCount: 6,
+   244→  },
+   245→  {
+   246→    id: 'g4s1-mul-three-by-two',
+   247→    grade: 4, semester: '上册',
+   248→    name: '三位数乘两位数',
+   249→    description: '如 123 × 45',
+   250→    emoji: '✖️',
+   251→    category: '数的运算',
+   252→    operations: ['multiply'],
+   253→    difficulty: 'hard',
+   254→    numRange: [2, 99],
+   255→    constraints: {},
+   256→    questionCount: 6,
+   257→  },
+   258→
+   259→  // ── Grade 4 下册 ─────────────────────────────────────────────────────────
+   260→  {
+   261→    id: 'g4s2-four-ops',
+   262→    grade: 4, semester: '下册',
+   263→    name: '四则混合运算',
+   264→    description: '带括号的四则运算',
+   265→    emoji: '🔀',
+   266→    category: '数的运算',
+   267→    operations: ['add', 'subtract', 'multiply', 'divide'],
+   268→    difficulty: 'hard',
+   269→    numRange: [2, 50],
+   270→    constraints: {},
+   271→    questionCount: 6,
+   272→  },
+   273→  {
+   274→    id: 'g4s2-decimal-add-sub',
+   275→    grade: 4, semester: '下册',
+   276→    name: '小数加减法',
+   277→    description: '如 3.5 + 2.8',
+   278→    emoji: '🔵',
+   279→    category: '分数与小数',
+   280→    operations: ['add', 'subtract'],
+   281→    difficulty: 'medium',
+   282→    numRange: [1, 99],
+   283→    constraints: { allowDecimals: true, decimalPlaces: 1 },
+   284→    questionCount: 8,
+   285→  },
+   286→
+   287→  // ── Grade 5 上册 ─────────────────────────────────────────────────────────
+   288→  {
+   289→    id: 'g5s1-decimal-mul-div',
+   290→    grade: 5, semester: '上册',
+   291→    name: '小数乘除法',
+   292→    description: '如 2.5 × 0.4、3.6 ÷ 1.2',
+   293→    emoji: '✖️',
+   294→    category: '分数与小数',
+   295→    operations: ['multiply', 'divide'],
+   296→    difficulty: 'hard',
+   297→    numRange: [1, 99],
+   298→    constraints: { allowDecimals: true, decimalPlaces: 1 },
+   299→    questionCount: 8,
+   300→  },
+   301→  {
+   302→    id: 'g5s1-simple-equations',
+   303→    grade: 5, semester: '上册',
+   304→    name: '解简易方程',
+   305→    description: '如 x + 5 = 12，求 x',
+   306→    emoji: '⚖️',
+   307→    category: '方程',
+   308→    operations: ['add', 'subtract'],
+   309→    difficulty: 'medium',
+   310→    numRange: [1, 50],
+   311→    constraints: {},
+   312→    questionCount: 8,
+   313→  },
+   314→
+   315→  // ── Grade 5 下册 ─────────────────────────────────────────────────────────
+   316→  {
+   317→    id: 'g5s2-fraction-add-sub',
+   318→    grade: 5, semester: '下册',
+   319→    name: '分数加减法',
+   320→    description: '同分母分数加减法',
+   321→    emoji: '🍕',
+   322→    category: '分数与小数',
+   323→    operations: ['add', 'subtract'],
+   324→    difficulty: 'medium',
+   325→    numRange: [2, 12],
+   326→    constraints: {},
+   327→    questionCount: 8,
+   328→  },
+   329→
+   330→  // ── Grade 6 上册 ─────────────────────────────────────────────────────────
+   331→  {
+   332→    id: 'g6s1-fraction-mul-div',
+   333→    grade: 6, semester: '上册',
+   334→    name: '分数乘除法',
+   335→    description: '分数的乘法与除法',
+   336→    emoji: '✖️',
+   337→    category: '分数与小数',
+   338→    operations: ['multiply', 'divide'],
+   339→    difficulty: 'hard',
+   340→    numRange: [1, 9],
+   341→    constraints: {},
+   342→    questionCount: 8,
+   343→  },
+   344→  {
+   345→    id: 'g6s1-percentage',
+   346→    grade: 6, semester: '上册',
+   347→    name: '百分数',
+   348→    description: '百分数计算，如 25% of 200',
+   349→    emoji: '💯',
+   350→    category: '比与比例',
+   351→    operations: ['multiply'],
+   352→    difficulty: 'hard',
+   353→    numRange: [1, 100],
+   354→    constraints: {},
+   355→    questionCount: 8,
+   356→  },
+   357→
+   358→  // ── Grade 6 下册 ─────────────────────────────────────────────────────────
+   359→  {
+   360→    id: 'g6s2-negative-arithmetic',
+   361→    grade: 6, semester: '下册',
+   362→    name: '负数加减法',
+   363→    description: '正负数加减运算',
+   364→    emoji: '🌡️',
+   365→    category: '数的运算',
+   366→    operations: ['add', 'subtract'],
+   367→    difficulty: 'medium',
+   368→    numRange: [1, 50],
+   369→    constraints: {},
+   370→    questionCount: 8,
+   371→  },
+   372→  {
+   373→    id: 'g6s2-negative-compare',
+   374→    grade: 6, semester: '下册',
+   375→    name: '负数比较',
+   376→    description: '正负数大小比较',
+   377→    emoji: '❄️',
+   378→    category: '量的计量',
+   379→    operations: ['compare'],
+   380→    difficulty: 'medium',
+   381→    numRange: [1, 50],
+   382→    constraints: {},
+   383→    questionCount: 4,
+   384→  },
+   385→  {
+   386→    id: 'g6s2-ratio',
+   387→    grade: 6, semester: '下册',
+   388→    name: '比例运算',
+   389→    description: '比与比例，如 3:5 = 9:x',
+   390→    emoji: '⚖️',
+   391→    category: '比与比例',
+   392→    operations: ['divide'],
+   393→    difficulty: 'hard',
+   394→    numRange: [2, 20],
+   395→    constraints: {},
+   396→    questionCount: 6,
+   397→  },
+   398→  {
+   399→    id: 'g6s2-percentage-advanced',
+   400→    grade: 6, semester: '下册',
+   401→    name: '百分数应用',
+   402→    description: '百分数应用题：求百分率、折扣等',
+   403→    emoji: '💯',
+   404→    category: '比与比例',
+   405→    operations: ['multiply'],
+   406→    difficulty: 'hard',
+   407→    numRange: [1, 200],
+   408→    constraints: {},
+   409→    questionCount: 6,
+   410→  },
+   411→  {
+   412→    id: 'g6s2-mixed-review',
+   413→    grade: 6, semester: '下册',
+   414→    name: '综合复习',
+   415→    description: '六年级综合运算复习',
+   416→    emoji: '📝',
+   417→    category: '综合',
+   418→    operations: ['add', 'subtract', 'multiply', 'divide'],
+   419→    difficulty: 'hard',
+   420→    numRange: [2, 100],
+   421→    constraints: {},
+   422→    questionCount: 8,
+   423→  },
+   424→];
+   425→
+   426→// ─── Curriculum Lookup Constants ─────────────────────────────────────────────
+   427→
+   428→export const CURRICULUM: Record<Grade, { 上册: CurriculumTopic[]; 下册: CurriculumTopic[] }> = {
+   429→  1: {
+   430→    上册: TOPICS.filter(t => t.grade === 1 && t.semester === '上册'),
+   431→    下册: TOPICS.filter(t => t.grade === 1 && t.semester === '下册'),
+   432→  },
+   433→  2: {
+   434→    上册: TOPICS.filter(t => t.grade === 2 && t.semester === '上册'),
+   435→    下册: TOPICS.filter(t => t.grade === 2 && t.semester === '下册'),
+   436→  },
+   437→  3: {
+   438→    上册: TOPICS.filter(t => t.grade === 3 && t.semester === '上册'),
+   439→    下册: TOPICS.filter(t => t.grade === 3 && t.semester === '下册'),
+   440→  },
+   441→  4: {
+   442→    上册: TOPICS.filter(t => t.grade === 4 && t.semester === '上册'),
+   443→    下册: TOPICS.filter(t => t.grade === 4 && t.semester === '下册'),
+   444→  },
+   445→  5: {
+   446→    上册: TOPICS.filter(t => t.grade === 5 && t.semester === '上册'),
+   447→    下册: TOPICS.filter(t => t.grade === 5 && t.semester === '下册'),
+   448→  },
+   449→  6: {
+   450→    上册: TOPICS.filter(t => t.grade === 6 && t.semester === '上册'),
+   451→    下册: TOPICS.filter(t => t.grade === 6 && t.semester === '下册'),
+   452→  },
+   453→};
+   454→
+   455→export const ALL_GRADES_CONFIG: { grade: Grade; semester: Semester; topics: CurriculumTopic[] }[] =
+   456→  ([1, 2, 3, 4, 5, 6] as Grade[]).flatMap(g =>
+   457→    (['上册', '下册'] as Semester[]).map(s => ({
+   458→      grade: g,
+   459→      semester: s,
+   460→      topics: CURRICULUM[g][s],
+   461→    }))
+   462→  );
+   463→
+   464→// ─── Grade Label ─────────────────────────────────────────────────────────────
+   465→
+   466→export function getGradeLabel(grade: Grade, semester: Semester): string {
+   467→  return `${GRADE_LABELS[grade]}${semester}`;
+   468→}
+   469→
+   470→// ─── Topic Lookup ────────────────────────────────────────────────────────────
+   471→
+   472→export function getTopicsForGrade(grade: Grade, semester: Semester): CurriculumTopic[] {
+   473→  return CURRICULUM[grade][semester];
+   474→}
+   475→
+   476→// ─── Specialized Question Generators ─────────────────────────────────────────
+   477→
+   478→function generateNoCarryAdd(min: number, max: number): MathQuestion {
+   479→  for (let attempt = 0; attempt < 10; attempt++) {
+   480→    const num1 = randInt(min, max);
+   481→    const num2 = randInt(min, max - num1); // ensure sum ≤ max
+   482→    // Verify no digit-wise carry
+   483→    const d1 = String(num1).padStart(String(max).length, '0');
+   484→    const d2 = String(num2).padStart(String(max).length, '0');
+   485→    let valid = true;
+   486→    for (let i = 0; i < d1.length; i++) {
+   487→      if (Number(d1[i]) + Number(d2[i]) >= 10) { valid = false; break; }
+   488→    }
+   489→    if (valid) {
+   490→      return {
+   491→        id: genId(), num1, num2, operation: 'add',
+   492→        correctAnswer: num1 + num2, displayOp: '+',
+   493→        expression: `${num1} + ${num2}`,
+   494→      };
+   495→    }
+   496→  }
+   497→  // Fallback: simple small addition that won't carry
+   498→  const num1 = randInt(min, 5);
+   499→  const num2 = randInt(min, 9 - num1);
+   500→  return {
+   501→    id: genId(), num1, num2, operation: 'add',
+   502→    correctAnswer: num1 + num2, displayOp: '+',
+   503→    expression: `${num1} + ${num2}`,
+   504→  };
+   505→}
+   506→
+   507→function generateNoBorrowSub(min: number, max: number): MathQuestion {
+   508→  for (let attempt = 0; attempt < 10; attempt++) {
+   509→    const num1 = randInt(Math.max(min, 1), max);
+   510→    const num2 = randInt(min, num1);
+   511→    const d1 = String(num1).padStart(String(max).length, '0');
+   512→    const d2 = String(num2).padStart(String(max).length, '0');
+   513→    let valid = true;
+   514→    for (let i = 0; i < d1.length; i++) {
+   515→      if (Number(d1[i]) < Number(d2[i])) { valid = false; break; }
+   516→    }
+   517→    if (valid) {
+   518→      return {
+   519→        id: genId(), num1, num2, operation: 'subtract',
+   520→        correctAnswer: num1 - num2, displayOp: '−',
+   521→        expression: `${num1} − ${num2}`,
+   522→      };
+   523→    }
+   524→  }
+   525→  const num1 = randInt(5, max);
+   526→  const num2 = randInt(0, Math.min(num1, 4));
+   527→  return {
+   528→    id: genId(), num1, num2, operation: 'subtract',
+   529→    correctAnswer: num1 - num2, displayOp: '−',
+   530→    expression: `${num1} − ${num2}`,
+   531→  };
+   532→}
+   533→
+   534→function generateTableMultiply(): MathQuestion {
+   535→  const num1 = randInt(1, 9);
+   536→  const num2 = randInt(1, 9);
+   537→  return {
+   538→    id: genId(), num1, num2, operation: 'multiply',
+   539→    correctAnswer: num1 * num2, displayOp: '×',
+   540→    expression: `${num1} × ${num2}`,
+   541→  };
+   542→}
+   543→
+   544→function generateTableDivide(): MathQuestion {
+   545→  const quotient = randInt(1, 9);
+   546→  const divisor = randInt(1, 9);
+   547→  return {
+   548→    id: genId(), num1: divisor * quotient, num2: divisor, operation: 'divide',
+   549→    correctAnswer: quotient, displayOp: '÷',
+   550→    expression: `${divisor * quotient} ÷ ${divisor}`,
+   551→  };
+   552→}
+   553→
+   554→function generateMultiDigitMulOne(maxMultiplier: number): MathQuestion {
+   555→  // e.g., 23 × 3 or 156 × 4
+   556→  const multiplier = randInt(2, 9);
+   557→  const multiDigit = randInt(10, maxMultiplier);
+   558→  return {
+   559→    id: genId(), num1: multiDigit, num2: multiplier, operation: 'multiply',
+   560→    correctAnswer: multiDigit * multiplier, displayOp: '×',
+   561→    expression: `${multiDigit} × ${multiplier}`,
+   562→  };
+   563→}
+   564→
+   565→function generateTwoDigitDivOne(): MathQuestion {
+   566→  for (let attempt = 0; attempt < 10; attempt++) {
+   567→    const divisor = randInt(2, 9);
+   568→    const quotient = randInt(10, 99);
+   569→    const dividend = divisor * quotient;
+   570→    if (dividend >= 10 && dividend <= 999) {
+   571→      return {
+   572→        id: genId(), num1: dividend, num2: divisor, operation: 'divide',
+   573→        correctAnswer: quotient, displayOp: '÷',
+   574→        expression: `${dividend} ÷ ${divisor}`,
+   575→      };
+   576→    }
+   577→  }
+   578→  const divisor = randInt(2, 9);
+   579→  const quotient = randInt(12, 50);
+   580→  return {
+   581→    id: genId(), num1: divisor * quotient, num2: divisor, operation: 'divide',
+   582→    correctAnswer: quotient, displayOp: '÷',
+   583→    expression: `${divisor * quotient} ÷ ${divisor}`,
+   584→  };
+   585→}
+   586→
+   587→function generateThreeByTwoMul(): MathQuestion {
+   588→  const num1 = randInt(100, 999);
+   589→  const num2 = randInt(11, 99);
+   590→  return {
+   591→    id: genId(), num1, num2, operation: 'multiply',
+   592→    correctAnswer: num1 * num2, displayOp: '×',
+   593→    expression: `${num1} × ${num2}`,
+   594→  };
+   595→}
+   596→
+   597→function generateFourOpsWithParens(): MathQuestion {
+   598→  // Generate expressions like (a + b) × c or a × (b − c) etc.
+   599→  const patterns = [
+   600→    // (a + b) × c
+   601→    () => {
+   602→      const a = randInt(2, 20), b = randInt(2, 20), c = randInt(2, 9);
+   603→      return { expr: `(${a} + ${b}) × ${c}`, answer: (a + b) * c, op: 'multiply' as Operation };
+   604→    },
+   605→    // a × b + c × d
+   606→    () => {
+   607→      const a = randInt(2, 9), b = randInt(2, 9), c = randInt(2, 9), d = randInt(2, 9);
+   608→      return { expr: `${a} × ${b} + ${c} × ${d}`, answer: a * b + c * d, op: 'add' as Operation };
+   609→    },
+   610→    // (a − b) × c
+   611→    () => {
+   612→      const b = randInt(1, 15), a = randInt(b + 1, 30), c = randInt(2, 9);
+   613→      return { expr: `(${a} − ${b}) × ${c}`, answer: (a - b) * c, op: 'multiply' as Operation };
+   614→    },
+   615→    // a × b ÷ c (clean division)
+   616→    () => {
+   617→      const c = randInt(2, 9), q = randInt(2, 20), b = randInt(2, 9);
+   618→      const a = (c * q) / b;
+   619→      if (a === Math.floor(a) && a >= 2 && a <= 50) {
+   620→        return { expr: `${a} × ${b} ÷ ${c}`, answer: q, op: 'divide' as Operation };
+   621→      }
+   622→      return null;
+   623→    },
+   624→    // a + b × c
+   625→    () => {
+   626→      const a = randInt(5, 30), b = randInt(2, 9), c = randInt(2, 9);
+   627→      return { expr: `${a} + ${b} × ${c}`, answer: a + b * c, op: 'add' as Operation };
+   628→    },
+   629→  ];
+   630→
+   631→  for (let attempt = 0; attempt < 10; attempt++) {
+   632→    const pattern = pickRandom(patterns)();
+   633→    if (pattern && Number.isInteger(pattern.answer) && pattern.answer > 0 && pattern.answer <= 10000) {
+   634→      return {
+   635→        id: genId(), num1: 0, num2: 0, operation: pattern.op,
+   636→        correctAnswer: pattern.answer, displayOp: '=',
+   637→        expression: pattern.expr,
+   638→      };
+   639→    }
+   640→  }
+   641→  const a = randInt(5, 20), b = randInt(2, 9), c = randInt(2, 9);
+   642→  return {
+   643→    id: genId(), num1: 0, num2: 0, operation: 'add',
+   644→    correctAnswer: a + b * c, displayOp: '=',
+   645→    expression: `${a} + ${b} × ${c}`,
+   646→  };
+   647→}
+   648→
+   649→function generateDecimalAddSub(places: number, isAdd: boolean): MathQuestion {
+   650→  const factor = Math.pow(10, places);
+   651→  for (let attempt = 0; attempt < 10; attempt++) {
+   652→    const raw1 = randInt(1 * factor, 99 * factor);
+   653→    const raw2 = randInt(1 * factor, 99 * factor);
+   654→    const num1 = raw1 / factor;
+   655→    const num2 = raw2 / factor;
+   656→
+   657→    if (isAdd) {
+   658→      const result = num1 + num2;
+   659→      return {
+   660→        id: genId(), num1, num2, operation: 'add',
+   661→        correctAnswer: parseFloat(result.toFixed(places)), displayOp: '+',
+   662→        expression: `${num1.toFixed(places)} + ${num2.toFixed(places)}`,
+   663→      };
+   664→    } else {
+   665→      const big = Math.max(num1, num2);
+   666→      const small = Math.min(num1, num2);
+   667→      const result = big - small;
+   668→      return {
+   669→        id: genId(), num1: big, num2: small, operation: 'subtract',
+   670→        correctAnswer: parseFloat(result.toFixed(places)), displayOp: '−',
+   671→        expression: `${big.toFixed(places)} − ${small.toFixed(places)}`,
+   672→      };
+   673→    }
+   674→  }
+   675→  // fallback
+   676→  const num1 = 2.5, num2 = 1.3;
+   677→  const result = isAdd ? num1 + num2 : Math.abs(num1 - num2);
+   678→  return {
+   679→    id: genId(), num1, num2, operation: isAdd ? 'add' : 'subtract',
+   680→    correctAnswer: parseFloat(result.toFixed(1)), displayOp: isAdd ? '+' : '−',
+   681→    expression: `${num1.toFixed(1)} ${isAdd ? '+' : '−'} ${num2.toFixed(1)}`,
+   682→  };
+   683→}
+   684→
+   685→function generateDecimalMulDiv(places: number, isMul: boolean): MathQuestion {
+   686→  const factor = Math.pow(10, places);
+   687→
+   688→  for (let attempt = 0; attempt < 10; attempt++) {
+   689→    if (isMul) {
+   690→      const raw1 = randInt(1, 99);
+   691→      const raw2 = randInt(1, 99);
+   692→      const num1 = raw1 / factor;
+   693→      const num2 = raw2 / factor;
+   694→      const result = num1 * num2;
+   695→      if (result > 0) {
+   696→        return {
+   697→          id: genId(), num1, num2, operation: 'multiply',
+   698→          correctAnswer: parseFloat(result.toFixed(places + 1)), displayOp: '×',
+   699→          expression: `${num1.toFixed(places)} × ${num2.toFixed(places)}`,
+   700→        };
+   701→      }
+   702→    } else {
+   703→      // Generate clean decimal division: dividend / divisor = quotient
+   704→      // E.g., 3.6 ÷ 1.2 = 3
+   705→      const quotient = randInt(2, 20);
+   706→      const divisor = randInt(2, 99) / factor;
+   707→      const dividend = parseFloat((quotient * divisor).toFixed(places + 1));
+   708→      if (dividend > 0 && divisor > 0) {
+   709→        return {
+   710→          id: genId(), num1: dividend, num2: divisor, operation: 'divide',
+   711→          correctAnswer: quotient, displayOp: '÷',
+   712→          expression: `${dividend} ÷ ${divisor}`,
+   713→        };
+   714→      }
+   715→    }
+   716→  }
+   717→  // fallback
+   718→  if (isMul) {
+   719→    const num1 = 2.5, num2 = 0.4;
+   720→    return {
+   721→      id: genId(), num1, num2, operation: 'multiply',
+   722→      correctAnswer: 1.0, displayOp: '×',
+   723→      expression: `${num1} × ${num2}`,
+   724→    };
+   725→  }
+   726→  return {
+   727→    id: genId(), num1: 3.6, num2: 1.2, operation: 'divide',
+   728→    correctAnswer: 3, displayOp: '÷',
+   729→    expression: `3.6 ÷ 1.2`,
+   730→  };
+   731→}
+   732→
+   733→function generateFractionComparison(): MathQuestion {
+   734→  // Compare fractions: e.g., 1/4 ○ 1/3
+   735→  for (let attempt = 0; attempt < 10; attempt++) {
+   736→    const d1 = randInt(2, 9);
+   737→    const d2 = randInt(2, 9);
+   738→    const n1 = randInt(1, d1 - 1);
+   739→    const n2 = randInt(1, d2 - 1);
+   740→    const v1 = n1 / d1;
+   741→    const v2 = n2 / d2;
+   742→    // Only generate if they are different to avoid ambiguity
+   743→    if (v1 !== v2) {
+   744→      const correctAnswer = v1 > v2;
+   745→      return {
+   746→        id: genId(), num1: 0, num2: 0, operation: 'compare',
+   747→        correctAnswer, displayOp: '?',
+   748→        compareLeft: v1, compareRight: v2,
+   749→        expression: `${n1}/${d1} 〇 ${n2}/${d2}`,
+   750→      };
+   751→    }
+   752→  }
+   753→  return {
+   754→    id: genId(), num1: 0, num2: 0, operation: 'compare',
+   755→    correctAnswer: false, displayOp: '?',
+   756→    compareLeft: 0.25, compareRight: 0.5,
+   757→    expression: `1/4 〇 1/2`,
+   758→  };
+   759→}
+   760→
+   761→function generateFractionAddSub(isAdd: boolean): MathQuestion {
+   762→  // Same-denominator fraction add/sub: a/b + c/b
+   763→  for (let attempt = 0; attempt < 10; attempt++) {
+   764→    const b = randInt(2, 12);
+   765→    const a = randInt(1, b - 1);
+   766→    const c = randInt(1, isAdd ? b - a : a - 1);
+   767→    if (c < 1) continue;
+   768→
+   769→    if (isAdd) {
+   770→      const numerator = a + c;
+   771→      // Proper or improper fraction result — store numerator as answer
+   772→      return {
+   773→        id: genId(), num1: 0, num2: 0, operation: 'add',
+   774→        correctAnswer: numerator, displayOp: '+',
+   775→        expression: `${a}/${b} + ${c}/${b} = ?/${b}`,
+   776→      };
+   777→    } else {
+   778→      const numerator = a - c;
+   779→      return {
+   780→        id: genId(), num1: 0, num2: 0, operation: 'subtract',
+   781→        correctAnswer: numerator, displayOp: '−',
+   782→        expression: `${a}/${b} − ${c}/${b} = ?/${b}`,
+   783→      };
+   784→    }
+   785→  }
+   786→  return {
+   787→    id: genId(), num1: 0, num2: 0, operation: isAdd ? 'add' : 'subtract',
+   788→    correctAnswer: isAdd ? 5 : 1, displayOp: isAdd ? '+' : '−',
+   789→    expression: isAdd ? '2/6 + 3/6 = ?/6' : '3/6 − 2/6 = ?/6',
+   790→  };
+   791→}
+   792→
+   793→function generateFractionMulDiv(isMul: boolean): MathQuestion {
+   794→  for (let attempt = 0; attempt < 10; attempt++) {
+   795→    if (isMul) {
+   796→      const n1 = randInt(1, 8), d1 = randInt(n1 + 1, 9);
+   797→      const n2 = randInt(1, 8), d2 = randInt(n2 + 1, 9);
+   798→      // Simplify result
+   799→      const num = n1 * n2;
+   800→      const den = d1 * d2;
+   801→      const g = gcd(num, den);
+   802→      const sn = num / g, sd = den / g;
+   803→      const answer = sd === 1 ? sn : num; // store numerator if improper
+   804→      return {
+   805→        id: genId(), num1: 0, num2: 0, operation: 'multiply',
+   806→        correctAnswer: sn, displayOp: '×',
+   807→        expression: `${n1}/${d1} × ${n2}/${d2}`,
+   808→      };
+   809→    } else {
+   810→      // a/b ÷ c/d = a/b × d/c
+   811→      const n1 = randInt(1, 8), d1 = randInt(n1 + 1, 9);
+   812→      const n2 = randInt(1, 8), d2 = randInt(n2 + 1, 9);
+   813→      const num = n1 * d2;
+   814→      const den = d1 * n2;
+   815→      const g = gcd(num, den);
+   816→      const sn = num / g;
+   817→      return {
+   818→        id: genId(), num1: 0, num2: 0, operation: 'divide',
+   819→        correctAnswer: sn, displayOp: '÷',
+   820→        expression: `${n1}/${d1} ÷ ${n2}/${d2}`,
+   821→      };
+   822→    }
+   823→  }
+   824→  return {
+   825→    id: genId(), num1: 0, num2: 0, operation: isMul ? 'multiply' : 'divide',
+   826→    correctAnswer: isMul ? 1 : 1, displayOp: isMul ? '×' : '÷',
+   827→    expression: isMul ? '1/2 × 2/3' : '1/2 ÷ 1/3',
+   828→  };
+   829→}
+   830→
+   831→function gcd(a: number, b: number): number {
+   832→  a = Math.abs(a); b = Math.abs(b);
+   833→  while (b) { [a, b] = [b, a % b]; }
+   834→  return a;
+   835→}
+   836→
+   837→function generateEquation(topic: CurriculumTopic): MathQuestion {
+   838→  // x + a = b or a + x = b or x − a = b or x × a = b
+   839→  const patterns: (() => MathQuestion | null)[] = [
+   840→    // x + a = b  → x = b − a
+   841→    () => {
+   842→      const a = randInt(1, 30), x = randInt(1, 50);
+   843→      const b = a + x;
+   844→      return { id: genId(), num1: a, num2: b, operation: 'add' as Operation,
+   845→        correctAnswer: x, displayOp: '=', expression: `x + ${a} = ${b}，x = ?` };
+   846→    },
+   847→    // a + x = b
+   848→    () => {
+   849→      const a = randInt(1, 30), x = randInt(1, 50);
+   850→      const b = a + x;
+   851→      return { id: genId(), num1: a, num2: b, operation: 'add' as Operation,
+   852→        correctAnswer: x, displayOp: '=', expression: `${a} + x = ${b}，x = ?` };
+   853→    },
+   854→    // x − a = b  → x = a + b
+   855→    () => {
+   856→      const a = randInt(1, 30), b = randInt(1, 30);
+   857→      return { id: genId(), num1: a, num2: b, operation: 'subtract' as Operation,
+   858→        correctAnswer: a + b, displayOp: '=', expression: `x − ${a} = ${b}，x = ?` };
+   859→    },
+   860→    // x × a = b  → x = b / a (clean)
+   861→    () => {
+   862→      const a = randInt(2, 9), x = randInt(2, 20);
+   863→      return { id: genId(), num1: a, num2: a * x, operation: 'multiply' as Operation,
+   864→        correctAnswer: x, displayOp: '=', expression: `x × ${a} = ${a * x}，x = ?` };
+   865→    },
+   866→  ];
+   867→
+   868→  for (let i = 0; i < 10; i++) {
+   869→    const q = pickRandom(patterns)();
+   870→    if (q && typeof q.correctAnswer === 'number' && q.correctAnswer >= 0) return q;
+   871→  }
+   872→  return {
+   873→    id: genId(), num1: 5, num2: 12, operation: 'add',
+   874→    correctAnswer: 7, displayOp: '=',
+   875→    expression: `x + 5 = 12，x = ?`,
+   876→  };
+   877→}
+   878→
+   879→function generatePercentage(): MathQuestion {
+   880→  // "a% of b = ?" → answer = a * b / 100
+   881→  for (let attempt = 0; attempt < 10; attempt++) {
+   882→    const pct = pickRandom([5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 80]);
+   883→    const base = randInt(10, 500);
+   884→    const answer = (pct * base) / 100;
+   885→    if (Number.isInteger(answer)) {
+   886→      return {
+   887→        id: genId(), num1: pct, num2: base, operation: 'multiply',
+   888→        correctAnswer: answer, displayOp: '=',
+   889→        expression: `${pct}% × ${base} = ?`,
+   890→      };
+   891→    }
+   892→  }
+   893→  return {
+   894→    id: genId(), num1: 25, num2: 200, operation: 'multiply',
+   895→    correctAnswer: 50, displayOp: '=',
+   896→    expression: `25% × 200 = ?`,
+   897→  };
+   898→}
+   899→
+   900→function generateNegativeComparison(): MathQuestion {
+   901→  // Compare negative numbers, e.g., -3 ○ -7 or -5 ○ 2
+   902→  for (let attempt = 0; attempt < 10; attempt++) {
+   903→    const a = randInt(1, 50);
+   904→    const b = randInt(1, 50);
+   905→    const makeNegA = Math.random() > 0.3;
+   906→    const makeNegB = Math.random() > 0.3;
+   907→    const left = makeNegA ? -a : a;
+   908→    const right = makeNegB ? -b : b;
+   909→
+   910→    if (left !== right) {
+   911→      // Represent as string with signs
+   912→      const ls = left < 0 ? `(${left})` : `${left}`;
+   913→      const rs = right < 0 ? `(${right})` : `${right}`;
+   914→      return {
+   915→        id: genId(), num1: left, num2: right, operation: 'compare',
+   916→        correctAnswer: left > right, displayOp: '?',
+   917→        compareLeft: left, compareRight: right,
+   918→        expression: `${ls} 〇 ${rs}`,
+   919→      };
+   920→    }
+   921→  }
+   922→  return {
+   923→    id: genId(), num1: -3, num2: -7, operation: 'compare',
+   924→    correctAnswer: true, displayOp: '?',
+   925→    compareLeft: -3, compareRight: -7,
+   926→    expression: `(-3) 〇 (-7)`,
+   927→  };
+   928→}
+   929→
+   930→function generateNegativeArithmetic(isAdd: boolean): MathQuestion {
+   931→  // Negative number addition/subtraction: e.g., (-3) + 5 = ? or (-5) - (-3) = ?
+   932→  for (let attempt = 0; attempt < 10; attempt++) {
+   933→    const a = randInt(1, 30);
+   934→    const b = randInt(1, 30);
+   935→    if (isAdd) {
+   936→      // Various patterns: (-a)+b, a+(-b), (-a)+(-b)
+   937→      const pattern = randInt(1, 3);
+   938→      let left: number, right: number, answer: number;
+   939→      let expr: string;
+   940→      if (pattern === 1) { // (-a) + b
+   941→        left = -a; right = b;
+   942→        answer = b - a;
+   943→        expr = `(${left}) + ${right}`;
+   944→      } else if (pattern === 2) { // a + (-b)
+   945→        left = a; right = -b;
+   946→        answer = a - b;
+   947→        expr = `${a} + (${right})`;
+   948→      } else { // (-a) + (-b)
+   949→        left = -a; right = -b;
+   950→        answer = -(a + b);
+   951→        expr = `(${left}) + (${right})`;
+   952→      }
+   953→      return {
+   954→        id: genId(), num1: left, num2: right, operation: 'add',
+   955→        correctAnswer: answer, displayOp: '+',
+   956→        expression: `${expr} = ?`,
+   957→      };
+   958→    } else {
+   959→      // Various patterns: (-a) - b, a - (-b), (-a) - (-b)
+   960→      const pattern = randInt(1, 3);
+   961→      let left: number, right: number, answer: number;
+   962→      let expr: string;
+   963→      if (pattern === 1) { // (-a) - b
+   964→        left = -a; right = b;
+   965→        answer = -(a + b);
+   966→        expr = `(${left}) − ${right}`;
+   967→      } else if (pattern === 2) { // a - (-b)
+   968→        left = a; right = -b;
+   969→        answer = a + b;
+   970→        expr = `${a} − (${right})`;
+   971→      } else { // (-a) - (-b)
+   972→        left = -a; right = -b;
+   973→        answer = -a + b;
+   974→        expr = `(${left}) − (${right})`;
+   975→      }
+   976→      return {
+   977→        id: genId(), num1: left, num2: right, operation: 'subtract',
+   978→        correctAnswer: answer, displayOp: '−',
+   979→        expression: `${expr} = ?`,
+   980→      };
+   981→    }
+   982→  }
+   983→  return {
+   984→    id: genId(), num1: -3, num2: 5, operation: 'add',
+   985→    correctAnswer: 2, displayOp: '+',
+   986→    expression: `(-3) + 5 = ?`,
+   987→  };
+   988→}
+   989→
+   990→function generatePercentageAdvanced(): MathQuestion {
+   991→  // Advanced percentage: "原价200，打8折，现价多少" or "某数增加20%是多少"
+   992→  for (let attempt = 0; attempt < 10; attempt++) {
+   993→    const pattern = randInt(1, 4);
+   994→    const base = randInt(50, 500);
+   995→    const pct = pickRandom([10, 15, 20, 25, 30, 40, 50, 60, 75, 80]);
+   996→
+   997→    if (pattern === 1) {
+   998→      // "200打8折" → 200 × 80% = 160
+   999→      const answer = Math.round(base * pct / 100);
+  1000→      return {
+  1001→        id: genId(), num1: base, num2: pct, operation: 'multiply',
+  1002→        correctAnswer: answer, displayOp: '=',
+  1003→        expression: `${base}打${pct / 10}折 = ?`,
+  1004→      };
+  1005→    } else if (pattern === 2) {
+  1006→      // "增加20%" → base × (1 + 0.2)
+  1007→      const factor = 100 + pct;
+  1008→      const answer = (base * factor) / 100;
+  1009→      if (Number.isInteger(answer)) {
+  1010→        return {
+  1011→          id: genId(), num1: base, num2: pct, operation: 'multiply',
+  1012→          correctAnswer: answer, displayOp: '=',
+  1013→          expression: `${base}增加${pct}% = ?`,
+  1014→        };
+  1015→      }
+  1016→    } else if (pattern === 3) {
+  1017→      // "减少20%" → base × (1 - 0.2)
+  1018→      const factor = 100 - pct;
+  1019→      const answer = (base * factor) / 100;
+  1020→      if (Number.isInteger(answer)) {
+  1021→        return {
+  1022→          id: genId(), num1: base, num2: pct, operation: 'multiply',
+  1023→          correctAnswer: answer, displayOp: '=',
+  1024→          expression: `${base}减少${pct}% = ?`,
+  1025→        };
+  1026→      }
+  1027→    } else {
+  1028→      // "是200的百分之几" → part/total × 100%
+  1029→      const part = randInt(1, Math.floor(base * 0.9));
+  1030→      if (part > 0 && base > 0) {
+  1031→        const answer = Math.round(part / base * 100);
+  1032→        return {
+  1033→          id: genId(), num1: part, num2: base, operation: 'divide',
+  1034→          correctAnswer: answer, displayOp: '=',
+  1035→          expression: `${part}是${base}的百分之几？`,
+  1036→        };
+  1037→      }
+  1038→    }
+  1039→  }
+  1040→  return {
+  1041→    id: genId(), num1: 200, num2: 80, operation: 'multiply',
+  1042→    correctAnswer: 160, displayOp: '=',
+  1043→    expression: `200打8折 = ?`,
+  1044→  };
+  1045→}
+  1046→
+  1047→function generateRatio(): MathQuestion {
+  1048→  // "If a:b = c:x, find x" → x = c * b / a
+  1049→  for (let attempt = 0; attempt < 10; attempt++) {
+  1050→    const a = randInt(2, 15);
+  1051→    const b = randInt(2, 15);
+  1052→    const k = randInt(2, 10);
+  1053→    const c = a * k;
+  1054→    const x = b * k;
+  1055→    if (Number.isInteger(x) && x > 0) {
+  1056→      return {
+  1057→        id: genId(), num1: 0, num2: 0, operation: 'divide',
+  1058→        correctAnswer: x, displayOp: '=',
+  1059→        expression: `${a}:${b} = ${c}:x，x = ?`,
+  1060→      };
+  1061→    }
+  1062→  }
+  1063→  return {
+  1064→    id: genId(), num1: 0, num2: 0, operation: 'divide',
+  1065→    correctAnswer: 15, displayOp: '=',
+  1066→    expression: `3:5 = 9:x，x = ?`,
+  1067→  };
+  1068→}
+  1069→
+  1070→// ─── Topic → Generator Routing ───────────────────────────────────────────────
+  1071→
+  1072→function generateForTopic(topic: CurriculumTopic): MathQuestion {
+  1073→  const c = topic.constraints;
+  1074→
+  1075→  // --- Special topic IDs (highest priority) ---
+  1076→  switch (topic.id) {
+  1077→    case 'g3s1-mul-multi-by-one':
+  1078→      return generateMultiDigitMulOne(randInt(12, 500));
+  1079→    case 'g3s2-div-two-by-one':
+  1080→      return generateTwoDigitDivOne();
+  1081→    case 'g4s1-mul-three-by-two':
+  1082→      return generateThreeByTwoMul();
+  1083→    case 'g4s2-four-ops':
+  1084→      return generateFourOpsWithParens();
+  1085→    case 'g5s1-simple-equations':
+  1086→      return generateEquation(topic);
+  1087→    case 'g5s2-fraction-add-sub':
+  1088→      return generateFractionAddSub(Math.random() > 0.5);
+  1089→    case 'g6s1-fraction-mul-div':
+  1090→      return generateFractionMulDiv(Math.random() > 0.5);
+  1091→    case 'g6s1-percentage':
+  1092→      return generatePercentage();
+  1093→    case 'g6s2-negative-numbers':
+  1094→      return generateNegativeComparison();
+  1095→    case 'g6s2-negative-compare':
+  1096→      return generateNegativeArithmetic(Math.random() > 0.5);
+  1097→    case 'g6s2-negative-arithmetic':
+  1098→      return generateNegativeArithmetic(Math.random() > 0.5);
+  1099→    case 'g6s2-ratio':
+  1100→      return generateRatio();
+  1101→    case 'g6s2-percentage-advanced':
+  1102→      return generatePercentageAdvanced();
+  1103→    case 'g3s2-simple-fractions':
+  1104→      return generateFractionComparison();
+  1105→  }
+  1106→
+  1107→  // --- Constraint-based routing ---
+  1108→  const op = pickRandom(topic.operations);
+  1109→
+  1110→  // Decimal operations
+  1111→  if (c.allowDecimals && (op === 'add' || op === 'subtract')) {
+  1112→    return generateDecimalAddSub(c.decimalPlaces ?? 1, op === 'add');
+  1113→  }
+  1114→  if (c.allowDecimals && (op === 'multiply' || op === 'divide')) {
+  1115→    return generateDecimalMulDiv(c.decimalPlaces ?? 1, op === 'multiply');
+  1116→  }
+  1117→
+  1118→  // Multiplication table
+  1119→  if (c.withinTable) {
+  1120→    if (op === 'multiply') return generateTableMultiply();
+  1121→    if (op === 'divide') return generateTableDivide();
+  1122→  }
+  1123→
+  1124→  // No-carry addition
+  1125→  if (op === 'add' && c.noCarry) {
+  1126→    return generateNoCarryAdd(topic.numRange[0], topic.numRange[1]);
+  1127→  }
+  1128→
+  1129→  // No-borrow subtraction
+  1130→  if (op === 'subtract' && c.noBorrow) {
+  1131→    return generateNoBorrowSub(topic.numRange[0], topic.numRange[1]);
+  1132→  }
+  1133→
+  1134→  // Standard operations with range (ensuring positive results for sub)
+  1135→  const [min, max] = topic.numRange;
+  1136→  switch (op) {
+  1137→    case 'add': {
+  1138→      const num1 = randInt(min, max);
+  1139→      const num2 = randInt(min, max);
+  1140→      return {
+  1141→        id: genId(), num1, num2, operation: 'add',
+  1142→        correctAnswer: num1 + num2, displayOp: '+',
+  1143→        expression: `${num1} + ${num2}`,
+  1144→      };
+  1145→    }
+  1146→    case 'subtract': {
+  1147→      const num1 = randInt(Math.max(min, 1), max);
+  1148→      const num2 = randInt(min, num1);
+  1149→      return {
+  1150→        id: genId(), num1, num2, operation: 'subtract',
+  1151→        correctAnswer: num1 - num2, displayOp: '−',
+  1152→        expression: `${num1} − ${num2}`,
+  1153→      };
+  1154→    }
+  1155→    case 'multiply': {
+  1156→      const num1 = randInt(min, Math.min(max, 12));
+  1157→      const num2 = randInt(min, Math.min(max, 12));
+  1158→      return {
+  1159→        id: genId(), num1, num2, operation: 'multiply',
+  1160→        correctAnswer: num1 * num2, displayOp: '×',
+  1161→        expression: `${num1} × ${num2}`,
+  1162→      };
+  1163→    }
+  1164→    case 'divide': {
+  1165→      const divisor = randInt(Math.max(min, 2), Math.min(max, 12));
+  1166→      const quotient = randInt(min, Math.min(max, 12));
+  1167→      return {
+  1168→        id: genId(), num1: divisor * quotient, num2: divisor, operation: 'divide',
+  1169→        correctAnswer: quotient, displayOp: '÷',
+  1170→        expression: `${divisor * quotient} ÷ ${divisor}`,
+  1171→      };
+  1172→    }
+  1173→    case 'compare': {
+  1174→      const num1 = randInt(min, max);
+  1175→      const num2 = randInt(min, max);
+  1176→      return {
+  1177→        id: genId(), num1, num2, operation: 'compare',
+  1178→        correctAnswer: num1 > num2, displayOp: '?',
+  1179→        compareLeft: num1, compareRight: num2,
+  1180→        expression: `${num1} 〇 ${num2}`,
+  1181→      };
+  1182→    }
+  1183→    default: {
+  1184→      const num1 = randInt(min, max);
+  1185→      const num2 = randInt(min, max);
+  1186→      return {
+  1187→        id: genId(), num1, num2, operation: 'add',
+  1188→        correctAnswer: num1 + num2, displayOp: '+',
+  1189→        expression: `${num1} + ${num2}`,
+  1190→      };
+  1191→    }
+  1192→  }
+  1193→}
+  1194→
+  1195→// ─── Public API ──────────────────────────────────────────────────────────────
+  1196→
+  1197→/**
+  1198→ * Generate questions from a specific curriculum topic.
+  1199→ */
+  1200→export function generateTopicQuestions(topic: CurriculumTopic, count: number): MathQuestion[] {
+  1201→  const questions: MathQuestion[] = [];
+  1202→  const effectiveCount = Math.min(count, topic.questionCount * 2);
+  1203→  for (let i = 0; i < effectiveCount; i++) {
+  1204→    questions.push(generateForTopic(topic));
+  1205→  }
+  1206→  return questions;
+  1207→}
+  1208→
+  1209→/**
+  1210→ * Generate mixed questions from a grade/semester.
+  1211→ * Distributes questions evenly across all topics in that semester.
+  1212→ */
+  1213→export function generateCurriculumQuestions(
+  1214→  grade: Grade,
+  1215→  semester: Semester,
+  1216→  count: number
+  1217→): MathQuestion[] {
+  1218→  const topics = getTopicsForGrade(grade, semester);
+  1219→  if (topics.length === 0) return [];
+  1220→
+  1221→  const questions: MathQuestion[] = [];
+  1222→  const perTopic = Math.max(1, Math.ceil(count / topics.length));
+  1223→
+  1224→  // Shuffle topics so order varies
+  1225→  const shuffled = [...topics].sort(() => Math.random() - 0.5);
+  1226→
+  1227→  for (const topic of shuffled) {
+  1228→    const needed = Math.min(perTopic, count - questions.length);
+  1229→    if (needed <= 0) break;
+  1230→    questions.push(...generateTopicQuestions(topic, needed));
+  1231→  }
+  1232→
+  1233→  // Trim to exact count if we overshot
+  1234→  return questions.slice(0, count);
+  1235→}
+  1236→

@@ -31,6 +31,11 @@ const DailyChallengePage = dynamic(() => import('@/components/math/DailyChalleng
 const LearningGoalsPage = dynamic(() => import('@/components/math/LearningGoalsPage'), { ssr: false })
 const ParentDashboard = dynamic(() => import('@/components/math/ParentDashboard'), { ssr: false })
 const OnboardingFlow = dynamic(() => import('@/components/math/OnboardingFlow'), { ssr: false })
+const SummerCampHome = dynamic(() => import('@/components/math/SummerCampHome'), { ssr: false })
+const SummerCampDaily = dynamic(() => import('@/components/math/SummerCampDaily'), { ssr: false })
+const SummerCampDiagnostic = dynamic(() => import('@/components/math/SummerCampDiagnostic'), { ssr: false })
+const SummerCampSkills = dynamic(() => import('@/components/math/SummerCampSkills'), { ssr: false })
+const SummerCampReport = dynamic(() => import('@/components/math/SummerCampReport'), { ssr: false })
 
 // ─── View Router ────────────────────────────────────────────────────────────
 
@@ -62,6 +67,11 @@ const viewComponents: Record<string, React.ComponentType> = {
   'learning-goals': LearningGoalsPage,
   'parent-dashboard': ParentDashboard,
   'onboarding': OnboardingFlow,
+  'summer-camp': SummerCampHome,
+  'summer-daily': SummerCampDaily,
+  'summer-diagnostic': SummerCampDiagnostic,
+  'summer-skills': SummerCampSkills,
+  'summer-report': SummerCampReport,
 }
 
 // ─── Error Boundary ────────────────────────────────────────────────────────

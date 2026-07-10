@@ -1,0 +1,818 @@
+     1→'use client';
+     2→
+     3→import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+     4→import { motion, AnimatePresence } from 'framer-motion';
+     5→import { Card, CardContent } from '@/components/ui/card';
+     6→import { Badge } from '@/components/ui/badge';
+     7→import { Button } from '@/components/ui/button';
+     8→import {
+     9→  ArrowLeft,
+    10→  CalendarDays,
+    11→  CheckCircle2,
+    12→  Clock,
+    13→  Delete,
+    14→  Flame,
+    15→  Gift,
+    16→  Sparkles,
+    17→  Star,
+    18→  Target,
+    19→  Trophy,
+    20→  XCircle,
+    21→  Zap,
+    22→} from 'lucide-react';
+    23→import { useGameStore } from '@/lib/game-store';
+    24→import { addError } from '@/lib/error-book';
+    25→import { generateQuestions, calculateStars, calculateXP } from '@/lib/math-utils';
+    26→import type { MathQuestion } from '@/lib/math-utils';
+    27→import { playClickSound, playCorrectSound, playWrongSound, resumeAudioContext } from '@/lib/sound';
+    28→import { usePetStore } from '@/lib/pet-store';
+    29→import BottomNav from './BottomNav';
+    30→
+    31→// ─── Types ──────────────────────────────────────────────────────────────────
+    32→
+    33→interface DailyChallengeState {
+    34→  questions: MathQuestion[];
+    35→  currentIndex: number;
+    36→  correct: number;
+    37→  wrong: number;
+    38→  startTime: number;
+    39→  questionStartTime: number;
+    40→  combo: number;
+    41→  maxCombo: number;
+    42→  answers: { questionId: string; answer: number; correct: boolean; timeMs: number }[];
+    43→  completed: boolean;
+    44→}
+    45→
+    46→// ─── Daily Challenge Config ─────────────────────────────────────────────────
+    47→
+    48→function getDailySeed(): number {
+    49→  const today = new Date();
+    50→  return today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+    51→}
+    52→
+    53→function getDailyChallengeConfig(): {
+    54→  operation: string;
+    55→  difficulty: string;
+    56→  count: number;
+    57→  label: string;
+    58→  emoji: string;
+    59→  description: string;
+    60→} {
+    61→  const seed = getDailySeed();
+    62→  const operations = ['add', 'subtract', 'multiply', 'mix'];
+    63→  const difficulties = ['easy', 'medium', 'hard'];
+    64→  const opIndex = seed % operations.length;
+    65→  const diffIndex = seed % difficulties.length;
+    66→
+    67→  const operationLabels: Record<string, string> = {
+    68→    add: '加法',
+    69→    subtract: '减法',
+    70→    multiply: '乘法',
+    71→    mix: '混合',
+    72→  };
+    73→
+    74→  const diffLabels: Record<string, string> = {
+    75→    easy: '简单',
+    76→    medium: '中等',
+    77→    hard: '困难',
+    78→  };
+    79→
+    80→  return {
+    81→    operation: operations[opIndex],
+    82→    difficulty: difficulties[diffIndex],
+    83→    count: 10,
+    84→    label: `${operationLabels[operations[opIndex]]}挑战`,
+    85→    emoji: opIndex === 3 ? '🎲' : opIndex === 2 ? '✖️' : opIndex === 1 ? '➖' : '➕',
+    86→    description: `今日${diffLabels[difficulties[diffIndex]]}难度 · ${operationLabels[operations[opIndex]]} · 10题`,
+    87→  };
+    88→}
+    89→
+    90→function generateDailyQuestions(): MathQuestion[] {
+    91→  const config = getDailyChallengeConfig();
+    92→  return generateQuestions(
+    93→    config.operation as 'add' | 'subtract' | 'multiply' | 'mix',
+    94→    config.difficulty as 'easy' | 'medium' | 'hard',
+    95→    config.count
+    96→  );
+    97→}
+    98→
+    99→// ─── Confetti Particles ─────────────────────────────────────────────────────
+   100→
+   101→const CONFETTI_PARTICLES = Array.from({ length: 12 }, (_, i) => ({
+   102→  id: i,
+   103→  x: Math.random() * 100,
+   104→  delay: Math.random() * 0.2,
+   105→  color: ['#f59e0b', '#f97316', '#10b981', '#3b82f6', '#8b5cf6'][i % 5],
+   106→  size: 6 + Math.random() * 6,
+   107→}));
+   108→
+   109→// ─── Component ──────────────────────────────────────────────────────────────
+   110→
+   111→export default function DailyChallengePage() {
+   112→  const setCurrentView = useGameStore((s) => s.setCurrentView);
+   113→  const dailyChallengeCompletedDates = useGameStore((s) => s.dailyChallengeCompletedDates);
+   114→  const streak = useGameStore((s) => s.streak);
+   115→  const totalStars = useGameStore((s) => s.totalStars);
+   116→
+   117→  const [challengeState, setChallengeState] = useState<DailyChallengeState | null>(null);
+   118→  const [showResult, setShowResult] = useState(false);
+   119→  const [inputValue, setInputValue] = useState('');
+   120→  const [showFeedback, setShowFeedback] = useState<'correct' | 'wrong' | null>(null);
+   121→  const [showConfetti, setShowConfetti] = useState(false);
+   122→  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   123→  const confettiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   124→
+   125→  const config = useMemo(() => getDailyChallengeConfig(), []);
+   126→  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
+   127→  const isCompleted = dailyChallengeCompletedDates.includes(today);
+   128→
+   129→  // Resume audio context on first interaction
+   130→  useEffect(() => {
+   131→    const handler = () => resumeAudioContext();
+   132→    document.addEventListener('touchstart', handler, { once: true });
+   133→    document.addEventListener('click', handler, { once: true });
+   134→    return () => {
+   135→      document.removeEventListener('touchstart', handler);
+   136→      document.removeEventListener('click', handler);
+   137→    };
+   138→  }, []);
+   139→
+   140→  // Cleanup timers
+   141→  useEffect(() => {
+   142→    return () => {
+   143→      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+   144→      if (confettiTimerRef.current) clearTimeout(confettiTimerRef.current);
+   145→    };
+   146→  }, []);
+   147→
+   148→  const startChallenge = useCallback(() => {
+   149→    const questions = generateDailyQuestions();
+   150→    setChallengeState({
+   151→      questions,
+   152→      currentIndex: 0,
+   153→      correct: 0,
+   154→      wrong: 0,
+   155→      startTime: Date.now(),
+   156→      questionStartTime: Date.now(),
+   157→      combo: 0,
+   158→      maxCombo: 0,
+   159→      answers: [],
+   160→      completed: false,
+   161→    });
+   162→    setShowResult(false);
+   163→    setInputValue('');
+   164→    playClickSound();
+   165→  }, []);
+   166→
+   167→  const handleSubmitAnswer = useCallback((answer: number) => {
+   168→    if (!challengeState || showFeedback) return;
+   169→
+   170→    const currentQ = challengeState.questions[challengeState.currentIndex];
+   171→    const isCorrect = Number(answer) === Number(currentQ.correctAnswer);
+   172→    const timeMs = Date.now() - challengeState.questionStartTime;
+   173→
+   174→    if (isCorrect) {
+   175→      playCorrectSound();
+   176→    } else {
+   177→      playWrongSound();
+   178→      addError({
+   179→        id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+   180→        subject: 'math',
+   181→        expression: currentQ.expression || `${currentQ.num1} ${currentQ.displayOp} ${currentQ.num2}`,
+   182→        correctAnswer: Number(currentQ.correctAnswer),
+   183→        userAnswer: answer,
+   184→        operation: config.operation,
+   185→        difficulty: config.difficulty,
+   186→        mode: 'daily',
+   187→        timestamp: Date.now(),
+   188→        date: new Date().toISOString(),
+   189→        reviewCount: 0,
+   190→        mastered: false,
+   191→      });
+   192→    }
+   193→
+   194→    // Show feedback animation
+   195→    setShowFeedback(isCorrect ? 'correct' : 'wrong');
+   196→    if (isCorrect) {
+   197→      setShowConfetti(true);
+   198→      if (confettiTimerRef.current) clearTimeout(confettiTimerRef.current);
+   199→      confettiTimerRef.current = setTimeout(() => setShowConfetti(false), 1000);
+   200→    }
+   201→
+   202→    feedbackTimerRef.current = setTimeout(() => {
+   203→      setShowFeedback(null);
+   204→
+   205→      const newCombo = isCorrect ? challengeState.combo + 1 : 0;
+   206→      const newAnswers = [...challengeState.answers, { questionId: currentQ.id, answer, correct: isCorrect, timeMs }];
+   207→      const newCorrect = challengeState.correct + (isCorrect ? 1 : 0);
+   208→      const newWrong = challengeState.wrong + (isCorrect ? 0 : 1);
+   209→      const isLast = challengeState.currentIndex >= challengeState.questions.length - 1;
+   210→
+   211→      if (isLast) {
+   212→        const finalMaxCombo = Math.max(challengeState.maxCombo, newCombo);
+   213→        const finalTimeMs = Date.now() - challengeState.startTime;
+   214→        setChallengeState({
+   215→          ...challengeState,
+   216→          correct: newCorrect,
+   217→          wrong: newWrong,
+   218→          combo: newCombo,
+   219→          maxCombo: finalMaxCombo,
+   220→          answers: newAnswers,
+   221→          completed: true,
+   222→        });
+   223→        setShowResult(true);
+   224→
+   225→        const gameState = useGameStore.getState();
+   226→        const isFirstCompletion = !gameState.dailyChallengeCompletedDates.includes(
+   227→          new Date().toISOString().split('T')[0]
+   228→        );
+   229→
+   230→        useGameStore.getState().completeSubjectSession({
+   231→          correct: newCorrect,
+   232→          total: challengeState.questions.length,
+   233→          timeMs: finalTimeMs,
+   234→          maxCombo: finalMaxCombo,
+   235→          subject: 'math',
+   236→          mode: 'daily',
+   237→          difficulty: config.difficulty,
+   238→        });
+   239→
+   240→        if (isFirstCompletion) {
+   241→          const petStore = usePetStore.getState();
+   242→          const resultState = useGameStore.getState();
+   243→          const earnedCoins = resultState.lastResult?.coinsEarned ?? 0;
+   244→          const bonusCoins = Math.floor(earnedCoins * 0.5);
+   245→          if (bonusCoins > 0) {
+   246→            petStore.addCoins(bonusCoins);
+   247→          }
+   248→        }
+   249→
+   250→        const todayStr = new Date().toISOString().split('T')[0];
+   251→        const state = useGameStore.getState();
+   252→        if (!state.dailyChallengeCompletedDates.includes(todayStr)) {
+   253→          useGameStore.setState({
+   254→            dailyChallengeCompletedDates: [...state.dailyChallengeCompletedDates, todayStr],
+   255→          });
+   256→        }
+   257→      } else {
+   258→        setChallengeState({
+   259→          ...challengeState,
+   260→          currentIndex: challengeState.currentIndex + 1,
+   261→          correct: newCorrect,
+   262→          wrong: newWrong,
+   263→          combo: newCombo,
+   264→          maxCombo: Math.max(challengeState.maxCombo, newCombo),
+   265→          answers: newAnswers,
+   266→          questionStartTime: Date.now(),
+   267→        });
+   268→        setInputValue('');
+   269→      }
+   270→    }, isCorrect ? 400 : 800);
+   271→  }, [challengeState, showFeedback, config]);
+   272→
+   273→  // ── Number pad handlers ──
+   274→  const handleNumPress = useCallback((num: string) => {
+   275→    if (showFeedback || !challengeState) return;
+   276→    setInputValue((prev) => {
+   277→      const newVal = prev + num;
+   278→      if (newVal.length > 6) return prev;
+   279→      return newVal;
+   280→    });
+   281→  }, [challengeState, showFeedback]);
+   282→
+   283→  const handleDelete = useCallback(() => {
+   284→    if (showFeedback) return;
+   285→    setInputValue((prev) => prev.slice(0, -1));
+   286→  }, [showFeedback]);
+   287→
+   288→  const handleToggleNegative = useCallback(() => {
+   289→    if (showFeedback || !challengeState) return;
+   290→    setInputValue((prev) => {
+   291→      if (prev.startsWith('-')) return prev.slice(1);
+   292→      return '-' + prev;
+   293→    });
+   294→  }, [challengeState, showFeedback]);
+   295→
+   296→  const handleNumericSubmit = useCallback(() => {
+   297→    if (!inputValue) return;
+   298→    const num = parseInt(inputValue, 10);
+   299→    if (isNaN(num)) return;
+   300→    handleSubmitAnswer(num);
+   301→  }, [inputValue, handleSubmitAnswer]);
+   302→
+   303→  // ── Result View ──
+   304→  if (showResult && challengeState) {
+   305→    const total = challengeState.correct + challengeState.wrong;
+   306→    const accuracy = total > 0 ? Math.round((challengeState.correct / total) * 100) : 0;
+   307→    const timeMs = Date.now() - challengeState.startTime;
+   308→    const stars = calculateStars(challengeState.correct, total);
+   309→    const xp = calculateXP(challengeState.correct, total, timeMs, stars, challengeState.maxCombo);
+   310→
+   311→    return (
+   312→      <div className="min-h-screen bg-gradient-to-b from-amber-50 via-yellow-50/30 to-white">
+   313→        <div className="mx-auto max-w-md px-4 py-6 pb-28">
+   314→          <motion.div
+   315→            initial={{ scale: 0.8, opacity: 0 }}
+   316→            animate={{ scale: 1, opacity: 1 }}
+   317→            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+   318→            className="text-center"
+   319→          >
+   320→            {/* Trophy Animation */}
+   321→            <motion.div
+   322→              animate={{ rotate: [0, 5, -5, 0] }}
+   323→              transition={{ duration: 2, repeat: Infinity }}
+   324→              className="text-6xl mb-4"
+   325→            >
+   326→              {accuracy >= 90 ? '🏆' : accuracy >= 60 ? '🌟' : '💪'}
+   327→            </motion.div>
+   328→
+   329→            <h1 className="text-2xl font-black text-gray-800 mb-1">
+   330→              {accuracy >= 90 ? '太厉害了！' : accuracy >= 60 ? '不错的表现！' : '继续加油！'}
+   331→            </h1>
+   332→            <p className="text-sm text-gray-500 mb-6">每日挑战完成！</p>
+   333→
+   334→            {/* Stats Grid */}
+   335→            <div className="grid grid-cols-2 gap-3 mb-6">
+   336→              <Card className="border-0 shadow-sm py-0">
+   337→                <CardContent className="p-4 bg-gradient-to-br from-amber-50 to-orange-50 text-center">
+   338→                  <p className="text-3xl font-black text-amber-600">{accuracy}%</p>
+   339→                  <p className="text-[10px] text-amber-500">正确率</p>
+   340→                </CardContent>
+   341→              </Card>
+   342→              <Card className="border-0 shadow-sm py-0">
+   343→                <CardContent className="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 text-center">
+   344→                  <p className="text-3xl font-black text-emerald-600">{stars}⭐</p>
+   345→                  <p className="text-[10px] text-emerald-500">获得星星</p>
+   346→                </CardContent>
+   347→              </Card>
+   348→              <Card className="border-0 shadow-sm py-0">
+   349→                <CardContent className="p-4 bg-gradient-to-br from-violet-50 to-purple-50 text-center">
+   350→                  <p className="text-3xl font-black text-violet-600">{xp}</p>
+   351→                  <p className="text-[10px] text-violet-500">经验值</p>
+   352→                </CardContent>
+   353→              </Card>
+   354→              <Card className="border-0 shadow-sm py-0">
+   355→                <CardContent className="p-4 bg-gradient-to-br from-rose-50 to-pink-50 text-center">
+   356→                  <p className="text-3xl font-black text-rose-600">{challengeState.maxCombo}x</p>
+   357→                  <p className="text-[10px] text-rose-500">最高连击</p>
+   358→                </CardContent>
+   359→              </Card>
+   360→            </div>
+   361→
+   362→            {/* Bonus Info */}
+   363→            {!isCompleted && (
+   364→              <motion.div
+   365→                initial={{ opacity: 0, y: 10 }}
+   366→                animate={{ opacity: 1, y: 0 }}
+   367→                transition={{ delay: 0.3 }}
+   368→                className="rounded-xl bg-gradient-to-r from-amber-100 to-orange-100 p-3 mb-6 border border-amber-200"
+   369→              >
+   370→                <div className="flex items-center justify-center gap-2">
+   371→                  <Sparkles className="w-4 h-4 text-amber-500" />
+   372→                  <span className="text-sm font-bold text-amber-700">首次完成奖励 ×1.5</span>
+   373→                  <Sparkles className="w-4 h-4 text-amber-500" />
+   374→                </div>
+   375→              </motion.div>
+   376→            )}
+   377→
+   378→            {/* Action Buttons */}
+   379→            <div className="space-y-3">
+   380→              <Button
+   381→                onClick={() => {
+   382→                  setChallengeState(null);
+   383→                  setShowResult(false);
+   384→                }}
+   385→                className="w-full h-12 rounded-xl bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-white font-bold shadow-md"
+   386→              >
+   387→                🔄 再来一次
+   388→              </Button>
+   389→              <Button
+   390→                onClick={() => { setCurrentView('home'); }}
+   391→                variant="outline"
+   392→                className="w-full h-12 rounded-xl font-medium"
+   393→              >
+   394→                返回首页
+   395→              </Button>
+   396→            </div>
+   397→          </motion.div>
+   398→        </div>
+   399→        <BottomNav />
+   400→      </div>
+   401→    );
+   402→  }
+   403→
+   404→  // ── Playing Mode ── (with number pad, no BottomNav to maximize space)
+   405→  if (challengeState && !challengeState.completed) {
+   406→    const currentQ = challengeState.questions[challengeState.currentIndex];
+   407→    const progress = ((challengeState.currentIndex + 1) / challengeState.questions.length) * 100;
+   408→    const currentCombo = challengeState.combo;
+   409→
+   410→    // Get display expression
+   411→    const getDisplay = (q: MathQuestion) => {
+   412→      if (q.expression) {
+   413→        if (q.expression.includes('=') || q.expression.includes('？')) return q.expression;
+   414→        return `${q.expression} = ?`;
+   415→      }
+   416→      return `${q.num1} ${q.displayOp} ${q.num2} = ?`;
+   417→    };
+   418→
+   419→    return (
+   420→      <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white flex flex-col relative overflow-x-hidden max-w-lg mx-auto">
+   421→        {/* Confetti */}
+   422→        <AnimatePresence>
+   423→          {showConfetti && (
+   424→            <div className="fixed inset-0 pointer-events-none z-50">
+   425→              {CONFETTI_PARTICLES.map((p) => (
+   426→                <motion.div
+   427→                  key={p.id}
+   428→                  initial={{ opacity: 1, top: '20%', left: `${p.x}%`, scale: 0 }}
+   429→                  animate={{ opacity: 0, top: '110%', left: `${p.x + (Math.random() - 0.5) * 30}%`, scale: 1 }}
+   430→                  exit={{ opacity: 0 }}
+   431→                  transition={{ duration: 0.8, delay: p.delay }}
+   432→                  className="absolute rounded-sm"
+   433→                  style={{ width: p.size, height: p.size, backgroundColor: p.color }}
+   434→                />
+   435→              ))}
+   436→            </div>
+   437→          )}
+   438→        </AnimatePresence>
+   439→
+   440→        {/* Header */}
+   441→        <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-4 pt-3 py-3 text-white safe-top flex-shrink-0">
+   442→          <div className="flex items-center justify-between mb-2">
+   443→            <button
+   444→              onClick={() => {
+   445→                if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+   446→                setChallengeState(null);
+   447→                playClickSound();
+   448→              }}
+   449→              className="flex items-center gap-1 text-white/80 hover:text-white text-sm active:scale-95 min-h-[44px]"
+   450→            >
+   451→              <ArrowLeft className="w-4 h-4" />
+   452→              退出
+   453→            </button>
+   454→            <div className="flex items-center gap-3">
+   455→              <div className="flex items-center gap-1">
+   456→                <CheckCircle2 className="w-4 h-4" />
+   457→                <span className="text-sm font-bold">{challengeState.correct}</span>
+   458→              </div>
+   459→              <div className="flex items-center gap-1">
+   460→                <XIcon className="w-4 h-4" />
+   461→                <span className="text-sm font-bold">{challengeState.wrong}</span>
+   462→              </div>
+   463→            </div>
+   464→            <div className="flex items-center gap-2">
+   465→              {currentCombo > 1 && (
+   466→                <motion.span
+   467→                  key={currentCombo}
+   468→                  initial={{ scale: 0 }}
+   469→                  animate={{ scale: 1 }}
+   470→                  className="text-xs font-bold bg-orange-400/80 rounded-full px-2 py-0.5"
+   471→                >
+   472→                  🔥 {currentCombo}
+   473→                </motion.span>
+   474→              )}
+   475→              <span className="text-sm font-medium text-white/80">
+   476→                {challengeState.currentIndex + 1}/{challengeState.questions.length}
+   477→              </span>
+   478→            </div>
+   479→          </div>
+   480→          <div className="h-2 rounded-full bg-white/20 overflow-hidden">
+   481→            <motion.div
+   482→              className="h-full rounded-full bg-white"
+   483→              animate={{ width: `${progress}%` }}
+   484→              transition={{ duration: 0.3 }}
+   485→            />
+   486→          </div>
+   487→        </div>
+   488→
+   489→        {/* Main Content */}
+   490→        <div className="flex-1 flex flex-col items-center justify-center px-4 py-4 max-w-lg mx-auto w-full">
+   491→          {/* Combo Badge */}
+   492→          <AnimatePresence>
+   493→            {currentCombo >= 3 && (
+   494→              <motion.div
+   495→                key={currentCombo}
+   496→                initial={{ scale: 0, opacity: 0, y: 20 }}
+   497→                animate={{ scale: 1, opacity: 1, y: 0 }}
+   498→                exit={{ scale: 0, opacity: 0, y: -20 }}
+   499→                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+   500→                className="mb-3"
+   501→              >
+   502→                <Badge className="bg-gradient-to-r from-orange-400 to-red-500 text-white border-none px-3 py-1.5 text-sm gap-1 shadow-lg">
+   503→                  <Flame className="w-4 h-4" />
+   504→                  {currentCombo} 连击
+   505→                </Badge>
+   506→              </motion.div>
+   507→            )}
+   508→          </AnimatePresence>
+   509→
+   510→          {/* Question Card */}
+   511→          <motion.div
+   512→            key={challengeState.currentIndex}
+   513→            initial={{ opacity: 0, x: 30 }}
+   514→            animate={{ opacity: 1, x: 0 }}
+   515→            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+   516→            className="w-full mb-4"
+   517→          >
+   518→            <div className={`
+   519→              relative bg-white rounded-2xl shadow-lg border-2 p-5 text-center transition-all
+   520→              ${showFeedback === 'correct'
+   521→                ? 'border-emerald-300 bg-emerald-50'
+   522→                : showFeedback === 'wrong'
+   523→                  ? 'border-red-300 bg-red-50'
+   524→                  : 'border-amber-100'
+   525→              }
+   526→            `}>
+   527→              {/* Feedback overlay */}
+   528→              <AnimatePresence>
+   529→                {showFeedback && (
+   530→                  <motion.div
+   531→                    initial={{ opacity: 0, scale: 0 }}
+   532→                    animate={{
+   533→                      opacity: 1,
+   534→                      scale: 1,
+   535→                      rotate: showFeedback === 'correct' ? 0 : [0, -6, 6, -4, 4, 0],
+   536→                    }}
+   537→                    exit={{ opacity: 0 }}
+   538→                    transition={{ duration: showFeedback === 'wrong' ? 0.3 : 0.2 }}
+   539→                    className="absolute inset-0 flex items-center justify-center z-10 bg-white/70 rounded-2xl"
+   540→                  >
+   541→                    {showFeedback === 'correct' ? (
+   542→                      <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.3 }}>
+   543→                        <CheckCircle2 className="w-16 h-16 text-emerald-500" />
+   544→                      </motion.div>
+   545→                    ) : (
+   546→                      <XCircle className="w-16 h-16 text-red-500" />
+   547→                    )}
+   548→                  </motion.div>
+   549→                )}
+   550→              </AnimatePresence>
+   551→
+   552→              {/* Badges */}
+   553→              <div className="flex items-center justify-center gap-2 mb-3">
+   554→                <Badge className="bg-amber-50 text-amber-600 border-0 text-[10px]">
+   555→                  {config.emoji} {config.label}
+   556→                </Badge>
+   557→                <Badge className="bg-orange-50 text-orange-500 border-0 text-[10px]">
+   558→                  🎯 每日挑战
+   559→                </Badge>
+   560→              </div>
+   561→
+   562→              {/* Question text */}
+   563→              <p className="text-3xl sm:text-4xl font-bold text-gray-800 tracking-wide">
+   564→                {getDisplay(currentQ)}
+   565→              </p>
+   566→
+   567→              {/* Input display */}
+   568→              <div className="mt-3 min-h-[44px] flex items-center justify-center">
+   569→                <span className="text-4xl font-bold text-amber-500 font-mono">
+   570→                  {inputValue || <span className="text-gray-300">_</span>}
+   571→                </span>
+   572→              </div>
+   573→            </div>
+   574→          </motion.div>
+   575→
+   576→          {/* Number Pad */}
+   577→          <motion.div
+   578→            initial={{ opacity: 0, y: 20 }}
+   579→            animate={{ opacity: 1, y: 0 }}
+   580→            transition={{ delay: 0.1 }}
+   581→            className="w-full"
+   582→          >
+   583→            <div className="grid grid-cols-3 gap-2">
+   584→              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+   585→                <button
+   586→                  key={num}
+   587→                  onClick={() => handleNumPress(String(num))}
+   588→                  disabled={!!showFeedback}
+   589→                  className="h-14 rounded-xl bg-white border-2 border-gray-200 text-gray-800 font-bold text-xl shadow-sm hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 select-none"
+   590→                >
+   591→                  {num}
+   592→                </button>
+   593→              ))}
+   594→            </div>
+   595→            <div className="grid grid-cols-4 gap-2 mt-2">
+   596→              <button
+   597→                onClick={handleDelete}
+   598→                disabled={!!showFeedback}
+   599→                className="h-14 rounded-xl bg-red-50 border-2 border-red-200 text-red-500 flex items-center justify-center transition-all active:scale-95 disabled:opacity-50 select-none"
+   600→              >
+   601→                <Delete className="w-6 h-6" />
+   602→              </button>
+   603→              <button
+   604→                onClick={() => handleNumPress('0')}
+   605→                disabled={!!showFeedback}
+   606→                className="h-14 rounded-xl bg-white border-2 border-gray-200 text-gray-800 font-bold text-xl shadow-sm hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 select-none"
+   607→              >
+   608→                0
+   609→              </button>
+   610→              <button
+   611→                onClick={handleToggleNegative}
+   612→                disabled={!!showFeedback}
+   613→                className="h-14 rounded-xl bg-indigo-50 border-2 border-indigo-200 text-indigo-600 font-bold text-lg shadow-sm hover:bg-indigo-100 transition-all active:scale-95 disabled:opacity-50 select-none"
+   614→              >
+   615→                ±
+   616→              </button>
+   617→              <button
+   618→                onClick={handleNumericSubmit}
+   619→                disabled={!!showFeedback || !inputValue}
+   620→                className="h-14 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold text-xl shadow-md hover:opacity-90 transition-all active:scale-95 disabled:opacity-50 select-none"
+   621→              >
+   622→                ✓
+   623→              </button>
+   624→            </div>
+   625→          </motion.div>
+   626→        </div>
+   627→      </div>
+   628→    );
+   629→  }
+   630→
+   631→  // ── Landing / Intro View ──
+   632→  return (
+   633→    <div className="min-h-screen bg-gradient-to-b from-amber-50 via-yellow-50/30 to-white">
+   634→      {/* Header */}
+   635→      <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-4 pt-3 pb-6 text-white safe-top">
+   636→        <div className="mx-auto max-w-md">
+   637→          <div className="flex items-center justify-between mb-3">
+   638→            <button
+   639→              onClick={() => { playClickSound(); setCurrentView('home'); }}
+   640→              className="flex items-center gap-1 text-white/80 hover:text-white text-sm transition-colors active:scale-95 min-h-[44px]"
+   641→            >
+   642→              <ArrowLeft className="w-4 h-4" />
+   643→              返回
+   644→            </button>
+   645→            <span className="text-sm font-medium text-white/80">
+   646→              {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}
+   647→            </span>
+   648→          </div>
+   649→          <h1 className="text-2xl font-bold">🎯 每日挑战</h1>
+   650→          <p className="text-white/70 text-xs mt-1">每天一道专属练习，保持学习节奏！</p>
+   651→        </div>
+   652→      </div>
+   653→
+   654→      <div className="mx-auto max-w-md px-4 pb-28">
+   655→        {/* Today's Challenge Info */}
+   656→        <motion.div
+   657→          initial={{ y: 20, opacity: 0 }}
+   658→          animate={{ y: 0, opacity: 1 }}
+   659→          transition={{ delay: 0.1 }}
+   660→          className="-mt-3 mb-5"
+   661→        >
+   662→          <Card className="overflow-hidden border-0 shadow-lg py-0">
+   663→            <CardContent className="bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white">
+   664→              <div className="text-center">
+   665→                <motion.span
+   666→                  className="text-5xl block mb-3"
+   667→                  animate={{ scale: [1, 1.1, 1] }}
+   668→                  transition={{ duration: 2, repeat: Infinity }}
+   669→                >
+   670→                  {config.emoji}
+   671→                </motion.span>
+   672→                <h2 className="text-lg font-bold mb-1">今日挑战</h2>
+   673→                <p className="text-white/80 text-xs mb-3">{config.description}</p>
+   674→                <div className="flex items-center justify-center gap-4">
+   675→                  <div className="flex items-center gap-1">
+   676→                    <Target className="w-3.5 h-3.5" />
+   677→                    <span className="text-xs">{config.count}题</span>
+   678→                  </div>
+   679→                  <div className="flex items-center gap-1">
+   680→                    <Clock className="w-3.5 h-3.5" />
+   681→                    <span className="text-xs">限时挑战</span>
+   682→                  </div>
+   683→                  <div className="flex items-center gap-1">
+   684→                    <Star className="w-3.5 h-3.5" />
+   685→                    <span className="text-xs">额外奖励</span>
+   686→                  </div>
+   687→                </div>
+   688→              </div>
+   689→            </CardContent>
+   690→          </Card>
+   691→        </motion.div>
+   692→
+   693→        {/* Status */}
+   694→        <motion.div
+   695→          initial={{ y: 20, opacity: 0 }}
+   696→          animate={{ y: 0, opacity: 1 }}
+   697→          transition={{ delay: 0.15 }}
+   698→          className="mb-5"
+   699→        >
+   700→          {isCompleted ? (
+   701→            <Card className="overflow-hidden border-0 shadow-sm py-0">
+   702→              <CardContent className="bg-emerald-50 p-4">
+   703→                <div className="flex items-center gap-3">
+   704→                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
+   705→                    <CheckCircle2 className="text-emerald-500" size={20} />
+   706→                  </div>
+   707→                  <div>
+   708→                    <p className="text-sm font-bold text-emerald-700">今日挑战已完成！✨</p>
+   709→                    <p className="text-[10px] text-emerald-500">明天再来挑战新的题目吧</p>
+   710→                  </div>
+   711→                </div>
+   712→              </CardContent>
+   713→            </Card>
+   714→          ) : (
+   715→            <Card className="overflow-hidden border-0 shadow-sm py-0">
+   716→              <CardContent className="bg-amber-50 p-4">
+   717→                <div className="flex items-center gap-3">
+   718→                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
+   719→                    <Gift className="text-amber-500" size={20} />
+   720→                  </div>
+   721→                  <div>
+   722→                    <p className="text-sm font-bold text-amber-700">首次完成额外奖励 ×1.5</p>
+   723→                    <p className="text-[10px] text-amber-500">完成今日挑战获得更多经验和金币</p>
+   724→                  </div>
+   725→                </div>
+   726→              </CardContent>
+   727→            </Card>
+   728→          )}
+   729→        </motion.div>
+   730→
+   731→        {/* Stats Row */}
+   732→        <motion.div
+   733→          initial={{ y: 20, opacity: 0 }}
+   734→          animate={{ y: 0, opacity: 1 }}
+   735→          transition={{ delay: 0.2 }}
+   736→          className="mb-5"
+   737→        >
+   738→          <div className="grid grid-cols-3 gap-2">
+   739→            <Card className="border-0 shadow-sm py-0">
+   740→              <CardContent className="p-3 text-center">
+   741→                <Flame className="w-4 h-4 text-orange-500 mx-auto mb-1" />
+   742→                <p className="text-lg font-black text-gray-800">{streak}</p>
+   743→                <p className="text-[9px] text-gray-400">连续天数</p>
+   744→              </CardContent>
+   745→            </Card>
+   746→            <Card className="border-0 shadow-sm py-0">
+   747→              <CardContent className="p-3 text-center">
+   748→                <Trophy className="w-4 h-4 text-amber-500 mx-auto mb-1" />
+   749→                <p className="text-lg font-black text-gray-800">{dailyChallengeCompletedDates.length}</p>
+   750→                <p className="text-[9px] text-gray-400">完成次数</p>
+   751→              </CardContent>
+   752→            </Card>
+   753→            <Card className="border-0 shadow-sm py-0">
+   754→              <CardContent className="p-3 text-center">
+   755→                <Star className="w-4 h-4 text-yellow-500 mx-auto mb-1" />
+   756→                <p className="text-lg font-black text-gray-800">{totalStars}</p>
+   757→                <p className="text-[9px] text-gray-400">累计星星</p>
+   758→              </CardContent>
+   759→            </Card>
+   760→          </div>
+   761→        </motion.div>
+   762→
+   763→        {/* Start Button */}
+   764→        <motion.div
+   765→          initial={{ y: 20, opacity: 0 }}
+   766→          animate={{ y: 0, opacity: 1 }}
+   767→          transition={{ delay: 0.25 }}
+   768→        >
+   769→          <Button
+   770→            onClick={startChallenge}
+   771→            className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-base shadow-lg shadow-amber-200/50 active:scale-95 transition-transform"
+   772→          >
+   773→            {isCompleted ? '🔄 再来一次' : '🚀 开始挑战'}
+   774→          </Button>
+   775→        </motion.div>
+   776→
+   777→        {/* Recent completions */}
+   778→        {dailyChallengeCompletedDates.length > 0 && (
+   779→          <motion.div
+   780→            initial={{ y: 20, opacity: 0 }}
+   781→            animate={{ y: 0, opacity: 1 }}
+   782→            transition={{ delay: 0.3 }}
+   783→            className="mt-6"
+   784→          >
+   785→            <h3 className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-1">
+   786→              <CalendarDays className="size-3 text-amber-400" />
+   787→              挑战记录
+   788→            </h3>
+   789→            <div className="flex gap-2 overflow-x-auto pb-1">
+   790→              {dailyChallengeCompletedDates.slice(-7).reverse().map((date) => (
+   791→                <div
+   792→                  key={date}
+   793→                  className="flex-shrink-0 rounded-lg bg-amber-50 px-3 py-2 border border-amber-100/60 text-center"
+   794→                >
+   795→                  <p className="text-[10px] font-bold text-amber-600">{date.slice(5)}</p>
+   796→                  <p className="text-xs">✅</p>
+   797→                </div>
+   798→              ))}
+   799→            </div>
+   800→          </motion.div>
+   801→        )}
+   802→      </div>
+   803→
+   804→      <BottomNav />
+   805→    </div>
+   806→  );
+   807→}
+   808→
+   809→// Simple X icon to avoid import conflicts
+   810→function XIcon({ className }: { className?: string }) {
+   811→  return (
+   812→    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+   813→      <line x1="18" y1="6" x2="6" y2="18" />
+   814→      <line x1="6" y1="6" x2="18" y2="18" />
+   815→    </svg>
+   816→  );
+   817→}
+   818→
