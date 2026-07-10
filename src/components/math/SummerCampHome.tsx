@@ -205,7 +205,7 @@ export default function SummerCampHome() {
         <div className="mx-auto max-w-md relative z-10">
           <div className="flex items-center justify-between mb-4">
             <button
-              onClick={() => { playClickSound(); setCurrentView('home'); }}
+              onClick={() => { playClickSound(); setCurrentView('math-home'); }}
               className="flex items-center gap-1 text-white/80 text-xs font-medium bg-white/15 backdrop-blur rounded-full px-3 py-2 active:scale-95 transition-transform min-h-[36px]"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> 返回

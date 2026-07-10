@@ -25,6 +25,7 @@ import { getGradeLabel } from '@/lib/curriculum-config';
 import { playClickSound, resumeAudioContext } from '@/lib/sound';
 import { cn } from '@/lib/utils';
 import BottomNav from '@/components/math/BottomNav';
+import SpecialToolsPanel from '@/components/shared/SpecialToolsPanel';
 
 // ── Shared mutable config for EnglishPlay ──
 let _englishPlayConfig = {
@@ -43,7 +44,7 @@ export function setEnglishPlayConfig(cfg: Partial<typeof _englishPlayConfig>) {
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-type EnglishTab = 'free' | 'speed' | 'adventure';
+type EnglishTab = 'free' | 'speed' | 'adventure' | 'special';
 
 interface EnglishAdventureLevel {
   id: number;
@@ -63,6 +64,7 @@ const TABS: { key: EnglishTab; label: string; emoji: string; color: string; desc
   { key: 'free', label: '自由练习', emoji: '✏️', color: 'emerald', desc: '按自己的节奏练习' },
   { key: 'speed', label: '限时挑战', emoji: '⚡', color: 'amber', desc: '在限时内答对更多' },
   { key: 'adventure', label: '闯关模式', emoji: '🗺️', color: 'rose', desc: '逐层挑战冒险' },
+  { key: 'special', label: '专项训练', emoji: '🧰', color: 'violet', desc: '针对性突破薄弱项' },
 ];
 
 const GRADES: { value: EnglishGrade; label: string }[] = [
@@ -877,13 +879,14 @@ export default function EnglishHome() {
 
         {/* Mode Cards Grid */}
         <motion.div variants={itemVariants} className="mb-4">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             {TABS.map((tab) => {
               const isActive = activeTab === tab.key;
               const modeColorMap: Record<string, { bg: string; border: string; shadow: string; iconBg: string }> = {
                 emerald: { bg: 'from-emerald-50 to-teal-50', border: 'border-emerald-200', shadow: 'shadow-emerald-100/50', iconBg: 'from-emerald-100 to-teal-100' },
                 amber: { bg: 'from-amber-50 to-orange-50', border: 'border-amber-200', shadow: 'shadow-amber-100/50', iconBg: 'from-amber-100 to-orange-100' },
                 rose: { bg: 'from-rose-50 to-pink-50', border: 'border-rose-200', shadow: 'shadow-rose-100/50', iconBg: 'from-rose-100 to-pink-100' },
+                violet: { bg: 'from-violet-50 to-purple-50', border: 'border-violet-200', shadow: 'shadow-violet-100/50', iconBg: 'from-violet-100 to-purple-100' },
               };
               const colors = modeColorMap[tab.color];
 
@@ -953,6 +956,11 @@ export default function EnglishHome() {
             {activeTab === 'free' && renderFreeTab()}
             {activeTab === 'speed' && renderSpeedTab()}
             {activeTab === 'adventure' && renderAdventureTab()}
+            {activeTab === 'special' && (
+              <div className="px-1">
+                <SpecialToolsPanel subject="english" />
+              </div>
+            )}
           </motion.div>
         </AnimatePresence>
       </motion.div>
