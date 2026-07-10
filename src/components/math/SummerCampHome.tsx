@@ -454,7 +454,6 @@ export default function SummerCampHome() {
               const record = camp.completedDays[d.day];
               const done = !!record?.completed;
               const isToday = d.day === activeDay;
-              const isFuture = d.day > activeDay;
               const phaseInfo = getPhaseInfo(d.phase)!;
               return (
                 <button
@@ -462,15 +461,13 @@ export default function SummerCampHome() {
                   onClick={() => {
                     playClickSound();
                     // 所有日子都可点击，进入对应天的计划训练
-                    // 通过 sessionStorage 传递 day，daily 页会优先用 store.currentDay
-                    // 但为了支持任意天，我们临时设置 currentDay
                     useSummerCampStore.setState({ currentDay: d.day });
                     // 清除可能的 free topic
                     try { sessionStorage.removeItem('summer-free-topic'); } catch { /* ignore */ }
                     setCurrentView('summer-daily');
                   }}
                   className={`relative aspect-square rounded-2xl flex flex-col items-center justify-center transition-all ${
-                    done ? 'shadow-sm' : isFuture ? 'bg-gray-50 opacity-60' : 'bg-white border-2'
+                    done ? 'shadow-sm' : 'bg-white border-2 border-gray-100'
                   }`}
                   style={done ? { backgroundColor: `${phaseInfo.color}15` } : isToday ? { borderColor: phaseInfo.color } : {}}
                 >
@@ -479,7 +476,7 @@ export default function SummerCampHome() {
                   ) : (
                     <span className="text-base">{d.emoji}</span>
                   )}
-                  <span className={`text-[9px] font-bold mt-0.5 ${done ? '' : isFuture ? 'text-gray-400' : 'text-gray-600'}`} style={done ? { color: phaseInfo.color } : {}}>
+                  <span className={`text-[9px] font-bold mt-0.5 text-gray-600`} style={done ? { color: phaseInfo.color } : {}}>
                     {d.day}
                   </span>
                   {isToday && !done && (
