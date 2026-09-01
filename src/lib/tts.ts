@@ -470,6 +470,10 @@ function speakWithLocalAudio(text: string, lang: string, speed: number): Promise
 
     audio.addEventListener('error', () => finish(false), { once: true });
     audio.addEventListener('canplaythrough', () => {
+      // Chromium 加载元数据时会把 playbackRate 重置回 default(1),
+      // 必须在加载完成后再设,慢速朗读(如 0.8)才会生效
+      audio.playbackRate = Math.max(0.5, Math.min(2, speed));
+      audio.defaultPlaybackRate = audio.playbackRate;
       audio
         .play()
         .then(() => {
