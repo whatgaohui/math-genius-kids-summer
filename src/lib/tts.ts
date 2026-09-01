@@ -416,9 +416,9 @@ function stopCurrentAudio(): void {
   }
 }
 
-// ─── Local pre-generated audio (English vocabulary) ─────────────────────────
+// ─── Local pre-generated audio (English vocabulary / Chinese dictation) ──────
 
-// 与 scripts/generate-tts-audio.mjs 的 slugify 保持一致
+// 与 scripts/generate-tts-audio.mjs 的 slugifyWord / hashText 保持一致
 function slugifyWord(word: string): string {
   return word
     .toLowerCase()
@@ -427,27 +427,46 @@ function slugifyWord(word: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-// 已确认存在 / 已确认缺失的音频 slug 缓存，避免重复 404
+// 中文句子无法做文件名，用 FNV-1a 指纹代替（生成脚本用同一算法）
+function hashText(s: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
+// 已确认存在 / 已确认缺失的音频缓存（key = 目录/文件名），避免重复 404
 const localAudioExists = new Map<string, boolean>();
 
 /**
- * 播放预生成的本地音频（public/audio/en/<word>.mp3，由 npm run gen:tts-audio 生成）。
- * 这是网页版英语朗读的首选路径：不依赖系统 TTS 声音（很多国产手机/精简系统
- * 没有英语语音包，Web Speech API 会静默失败）。
+ * 播放预生成的本地音频（public/audio/{en,zh}/，由 npm run gen:tts-audio 生成）。
+ * 这是网页版朗读的首选路径：不依赖系统 TTS 声音（很多国产手机/精简系统/
+ * 内嵌浏览器没有可用语音包，Web Speech API 会静默失败）。
  * 返回 true 表示已接管播放；false 表示没有可用文件，调用方继续走降级链。
  */
 function speakWithLocalAudio(text: string, lang: string, speed: number): Promise<boolean> {
   if (typeof window === 'undefined') return Promise.resolve(false);
 
-  const slug = slugifyWord(text);
-  if (!slug) return Promise.resolve(false);
+  const lowerLang = lang.toLowerCase();
+  let dir: string;
+  let key: string;
+  if (lowerLang.startsWith('en')) {
+    dir = 'en';
+    key = slugifyWord(text);
+  } else if (lowerLang.startsWith('zh')) {
+    dir = 'zh';
+    key = hashText(text);
+  } else {
+    return Promise.resolve(false);
+  }
+  if (!key) return Promise.resolve(false);
 
-  if (!lang.toLowerCase().startsWith('en')) return Promise.resolve(false);
-
-  if (localAudioExists.get(slug) === false) return Promise.resolve(false);
+  if (localAudioExists.get(`${dir}/${key}`) === false) return Promise.resolve(false);
 
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-  const url = `${basePath}/audio/en/${slug}.mp3`;
+  const url = `${basePath}/audio/${dir}/${key}.mp3`;
 
   return new Promise((resolve) => {
     const audio = new Audio();
@@ -459,7 +478,7 @@ function speakWithLocalAudio(text: string, lang: string, speed: number): Promise
     const finish = (played: boolean) => {
       if (settled) return;
       settled = true;
-      localAudioExists.set(slug, played);
+      localAudioExists.set(`${dir}/${key}`, played);
       if (!played) {
         try { audio.pause(); } catch { /* ok */ }
       } else {
