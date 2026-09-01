@@ -6,8 +6,9 @@
 // 数据源与输出：
 //   英语：src/lib/question-bank/english/generators.ts 的 word 字段
 //         → public/audio/en/<slug>.mp3（slug=小写词面）
-//   语文：src/lib/question-bank/chinese/generators.ts 的 pinyin 字段，
-//         按听写题 prompt 模板拼整句 → public/audio/zh/<hash>.mp3（hash=文本指纹）
+//   语文：src/lib/chinese-utils.ts 的 pinyin 字段（ChinesePlay 听写模式朗读的
+//         就是这些拼音串，见 ChinesePlay 的 prompt.match 提取逻辑）
+//         → public/audio/zh/<hash>.mp3（hash=文本指纹）
 //
 // 前端约定：src/lib/tts.ts 的 slugifyWord / hashText 必须与本脚本完全一致。
 // 幂等：已存在的文件跳过，可重复运行（只补新条目）。
@@ -25,9 +26,7 @@ try {
 const EN_VOICE = "en-US-AnaNeural"; // 英语：微软儿童音色
 const ZH_VOICE = "zh-CN-XiaoxiaoNeural"; // 语文：晓晓（自然亲切）
 const EN_SRC = "src/lib/question-bank/english/generators.ts";
-const ZH_SRC = "src/lib/question-bank/chinese/generators.ts";
-// 必须与 chinese/generators.ts 听写题 prompt 模板逐字符一致
-const ZH_PROMPT = (pinyin) => `请选出拼音 "${pinyin}" 对应的词语：`;
+const ZH_SRC = "src/lib/chinese-utils.ts";
 
 export function slugifyWord(word) {
   return word
@@ -51,10 +50,9 @@ async function main() {
   const enWords = [...new Set([...enSrc.matchAll(/word:\s*'([^']+)'/g)].map((m) => m[1]))];
 
   const zhSrc = readFileSync(ZH_SRC, "utf-8");
-  const pinyins = [...new Set([...zhSrc.matchAll(/pinyin:\s*'([^']+)'/g)].map((m) => m[1]))];
-  const zhTexts = [...new Set(pinyins.map(ZH_PROMPT))];
+  const zhTexts = [...new Set([...zhSrc.matchAll(/pinyin:\s*'([^']+)'/g)].map((m) => m[1]))];
 
-  console.log(`[gen-tts] 英语 ${enWords.length} 词，语文 ${zhTexts.length} 句`);
+  console.log(`[gen-tts] 英语 ${enWords.length} 词，语文 ${zhTexts.length} 个拼音串`);
 
   const tasks = [
     { voice: EN_VOICE, dir: "public/audio/en", items: enWords.map((w) => ({ text: w, file: `${slugifyWord(w)}.mp3` })) },
