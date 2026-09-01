@@ -6,11 +6,13 @@ const isStaticExport = process.env.STATIC_EXPORT === "1";
 
 const nextConfig: NextConfig = {
   ...(isStaticExport
-    ? {
-        output: "export" as const,
-        basePath: "/math-genius-kids-summer",
-        images: { unoptimized: true },
-      }
+      ? {
+          output: "export" as const,
+          basePath: "/math-genius-kids-summer",
+          images: { unoptimized: true },
+          // 客户端代码（如 tts.ts 拼本地音频 URL）需要感知子路径
+          env: { NEXT_PUBLIC_BASE_PATH: "/math-genius-kids-summer" },
+        }
     : {
         output: "standalone" as const,
       }),
