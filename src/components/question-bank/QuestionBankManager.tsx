@@ -190,7 +190,7 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { type: 'spring', stiffness: 300, damping: 24 },
+    transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
   },
 };
 
@@ -464,7 +464,7 @@ function StoreTab() {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                  transition={{ type: 'spring' as const, stiffness: 300, damping: 24 }}
                 >
                   <Card className={`border ${cfg.borderColor} ${cfg.bgColor} overflow-hidden hover:shadow-md transition-shadow`}>
                     <CardContent className="p-4">
@@ -1332,7 +1332,7 @@ function ImportTab() {
         if (headers.includes('单词') || headers.includes('word')) detectedSubject = 'english';
         else if (headers.includes('拼音') || headers.includes('汉字') || headers.includes('答案')) detectedSubject = 'chinese';
 
-        const questions = [];
+        const questions: Record<string, unknown>[] = [];
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].split('\t').length > 1 ? lines[i].split('\t') : lines[i].split(',');
           if (cols.length < 3) continue;

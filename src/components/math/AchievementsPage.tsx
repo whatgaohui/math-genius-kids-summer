@@ -50,7 +50,7 @@ const itemVariants = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { type: 'spring', stiffness: 300, damping: 24 },
+    transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
   },
 };
 
@@ -353,7 +353,7 @@ export default function AchievementsPage() {
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
                                 transition={{
-                                  type: 'spring',
+                                  type: 'spring' as const,
                                   stiffness: 400,
                                   damping: 15,
                                 }}

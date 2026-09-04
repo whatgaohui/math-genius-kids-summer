@@ -75,6 +75,7 @@ export interface PracticeReward {
     petBonus: number;
     critical: number;
     modeMultiplier: number;
+    modeBonus: number;
   };
   talentBonus: number;
   talentName?: string;
@@ -352,19 +353,18 @@ export interface LevelUnlock {
   category: 'mode' | 'reward' | 'feature';
 }
 
+// 只保留真实实现的解锁内容（数值阶梯见 getCoinBonusPercent/getXPBonusPercent/
+// getCriticalHitChance/getComboMultiplier/checkAndClaimLoginReward）；
+// 语文/数学模式解锁由年级与星星门控，与宠物等级无关，不在本表声明
 export const LEVEL_UNLOCKS: LevelUnlock[] = [
-  { level: 3, name: '成语填空', emoji: '📝', description: '解锁语文成语填空模式', category: 'mode' },
-  { level: 3, name: '反义词大挑战', emoji: '🔄', description: '解锁语文反义词模式', category: 'mode' },
-  { level: 3, name: '近义词连连看', emoji: '🔗', description: '解锁语文近义词模式', category: 'mode' },
+  { level: 3, name: '经验加成', emoji: '🎓', description: '经验加成提升到10%', category: 'reward' },
   { level: 5, name: '每日奖励翻倍', emoji: '🎁', description: '每日登录奖励金币×2', category: 'reward' },
-  { level: 5, name: '古诗填空', emoji: '📜', description: '解锁语文古诗填空模式', category: 'mode' },
-  { level: 8, name: '进阶闯关', emoji: '🏰', description: '解锁数学进阶闯关难度', category: 'mode' },
+  { level: 5, name: '金币加成', emoji: '💰', description: '金币加成提升到15%', category: 'reward' },
+  { level: 8, name: '连击大师', emoji: '🔥', description: '连击奖励翻倍', category: 'reward' },
   { level: 10, name: '暴击强化', emoji: '⚡', description: '暴击率提升到15%', category: 'reward' },
-  { level: 10, name: '宠物称号', emoji: '🏅', description: '解锁自定义宠物称号', category: 'feature' },
   { level: 13, name: '经验大师', emoji: '🎓', description: '经验加成提升到20%', category: 'reward' },
-  { level: 15, name: '专属宠物皮肤', emoji: '🎨', description: '解锁宠物彩虹特效', category: 'feature' },
   { level: 16, name: '财富之友', emoji: '👑', description: '金币加成提升到25%', category: 'reward' },
-  { level: 20, name: '满级大师', emoji: '🏆', description: '全属性加成+30%！传说称号', category: 'feature' },
+  { level: 20, name: '满级大师', emoji: '🏆', description: '全属性加成+30%！', category: 'feature' },
 ];
 
 export function getUnlocksForLevel(level: number): LevelUnlock[] {
@@ -381,51 +381,51 @@ export const FURNITURE_SHOP: FurnitureItem[] = [
   // ── Beds (5 items) ──
   { id: 'bed-straw', name: '稻草小窝', emoji: '🌾', price: 30, category: 'bed', tier: 1, description: '简单的稻草窝', effect: '舒适+3', levelRequired: 1 },
   { id: 'bed-basic', name: '小木床', emoji: '🛏️', price: 80, category: 'bed', tier: 1, description: '温暖的小木床', effect: '舒适+5', levelRequired: 2 },
-  { id: 'bed-fluffy', name: '毛绒窝', emoji: '🧸', price: 200, category: 'bed', tier: 2, description: '柔软的毛绒窝', effect: '舒适+8, 金币+5%', levelRequired: 4 },
-  { id: 'bed-castle', name: '小城堡', emoji: '🏰', price: 500, category: 'bed', tier: 3, description: '华丽的宠物城堡', effect: '舒适+14, 金币+10%', levelRequired: 8 },
-  { id: 'bed-royal', name: '皇家大床', emoji: '👑', price: 1200, category: 'bed', tier: 4, description: '至尊皇家大床', effect: '舒适+22, 全属性+5%', levelRequired: 15 },
+  { id: 'bed-fluffy', name: '毛绒窝', emoji: '🧸', price: 200, category: 'bed', tier: 2, description: '柔软的毛绒窝', effect: '舒适+8', levelRequired: 4 },
+  { id: 'bed-castle', name: '小城堡', emoji: '🏰', price: 500, category: 'bed', tier: 3, description: '华丽的宠物城堡', effect: '舒适+14', levelRequired: 8 },
+  { id: 'bed-royal', name: '皇家大床', emoji: '👑', price: 1200, category: 'bed', tier: 4, description: '至尊皇家大床', effect: '舒适+22', levelRequired: 15 },
 
   // ── Food (5 items) ──
   { id: 'food-bowl', name: '小食碗', emoji: '🥣', price: 25, category: 'food', tier: 1, description: '普通食碗', effect: '舒适+3', levelRequired: 1 },
   { id: 'food-basic', name: '干粮盆', emoji: '🍚', price: 70, category: 'food', tier: 1, description: '装满干粮的盆', effect: '舒适+5', levelRequired: 2 },
-  { id: 'food-fancy', name: '精致餐具', emoji: '🍽️', price: 180, category: 'food', tier: 2, description: '精美的餐具套装', effect: '舒适+8, 经验+5%', levelRequired: 4 },
-  { id: 'food-feast', name: '大餐台', emoji: '🎉', price: 450, category: 'food', tier: 3, description: '丰盛的大餐台', effect: '舒适+14, 经验+10%', levelRequired: 8 },
-  { id: 'food-royal', name: '御膳房', emoji: '🏺', price: 1000, category: 'food', tier: 4, description: '皇家御膳房', effect: '舒适+22, 全属性+5%', levelRequired: 15 },
+  { id: 'food-fancy', name: '精致餐具', emoji: '🍽️', price: 180, category: 'food', tier: 2, description: '精美的餐具套装', effect: '舒适+8', levelRequired: 4 },
+  { id: 'food-feast', name: '大餐台', emoji: '🎉', price: 450, category: 'food', tier: 3, description: '丰盛的大餐台', effect: '舒适+14', levelRequired: 8 },
+  { id: 'food-royal', name: '御膳房', emoji: '🏺', price: 1000, category: 'food', tier: 4, description: '皇家御膳房', effect: '舒适+22', levelRequired: 15 },
 
   // ── Toys (5 items) ──
   { id: 'toy-ball', name: '小球', emoji: '🎾', price: 30, category: 'toy', tier: 1, description: '普通小球', effect: '舒适+3', levelRequired: 1 },
   { id: 'toy-yarn', name: '毛线球', emoji: '🧶', price: 80, category: 'toy', tier: 1, description: '彩色毛线球', effect: '舒适+5', levelRequired: 2 },
-  { id: 'toy-puzzle', name: '益智玩具', emoji: '🧩', price: 200, category: 'toy', tier: 2, description: '锻炼智力的玩具', effect: '舒适+8, 暴击+3%', levelRequired: 4 },
-  { id: 'toy-slide', name: '小滑梯', emoji: '🎢', price: 500, category: 'toy', tier: 3, description: '好玩的滑梯', effect: '舒适+14, 暴击+5%', levelRequired: 8 },
-  { id: 'toy-park', name: '游乐场', emoji: '🎡', price: 1200, category: 'toy', tier: 4, description: '专属游乐场', effect: '舒适+22, 全属性+5%', levelRequired: 15 },
+  { id: 'toy-puzzle', name: '益智玩具', emoji: '🧩', price: 200, category: 'toy', tier: 2, description: '锻炼智力的玩具', effect: '舒适+8', levelRequired: 4 },
+  { id: 'toy-slide', name: '小滑梯', emoji: '🎢', price: 500, category: 'toy', tier: 3, description: '好玩的滑梯', effect: '舒适+14', levelRequired: 8 },
+  { id: 'toy-park', name: '游乐场', emoji: '🎡', price: 1200, category: 'toy', tier: 4, description: '专属游乐场', effect: '舒适+22', levelRequired: 15 },
 
   // ── Decor (5 items) ──
   { id: 'decor-lamp', name: '小夜灯', emoji: '🏮', price: 40, category: 'decor', tier: 1, description: '温馨小夜灯', effect: '舒适+3', levelRequired: 1 },
   { id: 'decor-plant', name: '小盆栽', emoji: '🪴', price: 100, category: 'decor', tier: 1, description: '绿色小盆栽', effect: '舒适+5', levelRequired: 2 },
-  { id: 'decor-rainbow', name: '彩虹地毯', emoji: '🌈', price: 250, category: 'decor', tier: 2, description: '漂亮的彩虹地毯', effect: '舒适+8, 连击+10%', levelRequired: 4 },
-  { id: 'decor-crystal', name: '水晶球', emoji: '🔮', price: 600, category: 'decor', tier: 3, description: '神秘水晶球', effect: '舒适+14, 连击+20%', levelRequired: 8 },
-  { id: 'decor-mural', name: '壁画', emoji: '🖼️', price: 1500, category: 'decor', tier: 4, description: '大师级壁画', effect: '舒适+22, 全属性+5%', levelRequired: 15 },
+  { id: 'decor-rainbow', name: '彩虹地毯', emoji: '🌈', price: 250, category: 'decor', tier: 2, description: '漂亮的彩虹地毯', effect: '舒适+8', levelRequired: 4 },
+  { id: 'decor-crystal', name: '水晶球', emoji: '🔮', price: 600, category: 'decor', tier: 3, description: '神秘水晶球', effect: '舒适+14', levelRequired: 8 },
+  { id: 'decor-mural', name: '壁画', emoji: '🖼️', price: 1500, category: 'decor', tier: 4, description: '大师级壁画', effect: '舒适+22', levelRequired: 15 },
 
   // ── Wallpaper (5 items) ──
   { id: 'wallpaper-basic', name: '素色壁纸', emoji: '🎨', price: 60, category: 'wallpaper', tier: 1, description: '简约素色壁纸', effect: '舒适+3', levelRequired: 1, roomStyle: { wallColor: '#FFF7ED' } },
   { id: 'wallpaper-floral', name: '花纹壁纸', emoji: '🌸', price: 150, category: 'wallpaper', tier: 1, description: '优雅花纹壁纸', effect: '舒适+5', levelRequired: 3, roomStyle: { wallColor: '#FDF2F8' } },
-  { id: 'wallpaper-stars', name: '星空壁纸', emoji: '✨', price: 350, category: 'wallpaper', tier: 2, description: '浪漫星空壁纸', effect: '舒适+8, 经验+5%', levelRequired: 6, roomStyle: { wallColor: '#1E1B4B' } },
-  { id: 'wallpaper-forest', name: '森林壁纸', emoji: '🌲', price: 800, category: 'wallpaper', tier: 3, description: '自然森林壁纸', effect: '舒适+14, 金币+10%', levelRequired: 10, roomStyle: { wallColor: '#022C22' } },
-  { id: 'wallpaper-galaxy', name: '银河壁纸', emoji: '🌌', price: 2000, category: 'wallpaper', tier: 4, description: '梦幻银河壁纸', effect: '舒适+22, 全属性+8%', levelRequired: 18, roomStyle: { wallColor: '#0F0A2E' } },
+  { id: 'wallpaper-stars', name: '星空壁纸', emoji: '✨', price: 350, category: 'wallpaper', tier: 2, description: '浪漫星空壁纸', effect: '舒适+8', levelRequired: 6, roomStyle: { wallColor: '#1E1B4B' } },
+  { id: 'wallpaper-forest', name: '森林壁纸', emoji: '🌲', price: 800, category: 'wallpaper', tier: 3, description: '自然森林壁纸', effect: '舒适+14', levelRequired: 10, roomStyle: { wallColor: '#022C22' } },
+  { id: 'wallpaper-galaxy', name: '银河壁纸', emoji: '🌌', price: 2000, category: 'wallpaper', tier: 4, description: '梦幻银河壁纸', effect: '舒适+22', levelRequired: 18, roomStyle: { wallColor: '#0F0A2E' } },
 
   // ── Flooring (5 items) ──
   { id: 'flooring-basic', name: '木地板', emoji: '🪵', price: 50, category: 'flooring', tier: 1, description: '基础木地板', effect: '舒适+3', levelRequired: 1, roomStyle: { floorColor: '#D4A373' } },
   { id: 'flooring-wood', name: '实木地板', emoji: '🏗️', price: 120, category: 'flooring', tier: 1, description: '优质实木地板', effect: '舒适+5', levelRequired: 3, roomStyle: { floorColor: '#8B6914' } },
-  { id: 'flooring-tile', name: '瓷砖地板', emoji: '🏛️', price: 300, category: 'flooring', tier: 2, description: '精致瓷砖地板', effect: '舒适+8, 经验+5%', levelRequired: 6, roomStyle: { floorColor: '#C4B5FD' } },
-  { id: 'flooring-cloud', name: '云朵地毯', emoji: '☁️', price: 700, category: 'flooring', tier: 3, description: '柔软云朵地毯', effect: '舒适+14, 金币+10%', levelRequired: 10, roomStyle: { floorColor: '#BAE6FD' } },
-  { id: 'flooring-gold', name: '黄金地板', emoji: '💎', price: 1800, category: 'flooring', tier: 4, description: '豪华黄金地板', effect: '舒适+22, 全属性+8%', levelRequired: 18, roomStyle: { floorColor: '#FCD34D' } },
+  { id: 'flooring-tile', name: '瓷砖地板', emoji: '🏛️', price: 300, category: 'flooring', tier: 2, description: '精致瓷砖地板', effect: '舒适+8', levelRequired: 6, roomStyle: { floorColor: '#C4B5FD' } },
+  { id: 'flooring-cloud', name: '云朵地毯', emoji: '☁️', price: 700, category: 'flooring', tier: 3, description: '柔软云朵地毯', effect: '舒适+14', levelRequired: 10, roomStyle: { floorColor: '#BAE6FD' } },
+  { id: 'flooring-gold', name: '黄金地板', emoji: '💎', price: 1800, category: 'flooring', tier: 4, description: '豪华黄金地板', effect: '舒适+22', levelRequired: 18, roomStyle: { floorColor: '#FCD34D' } },
 
   // ── Lighting (5 items) ──
   { id: 'lighting-candle', name: '小蜡烛', emoji: '🕯️', price: 35, category: 'lighting', tier: 1, description: '温馨小蜡烛', effect: '舒适+3', levelRequired: 1, roomStyle: { lightColor: '#FFA500', lightIntensity: 0.3 } },
   { id: 'lighting-basic', name: '台灯', emoji: '💡', price: 90, category: 'lighting', tier: 1, description: '明亮台灯', effect: '舒适+5', levelRequired: 3, roomStyle: { lightColor: '#FFF3BF', lightIntensity: 0.5 } },
-  { id: 'lighting-chandelier', name: '吊灯', emoji: '🪔', price: 220, category: 'lighting', tier: 2, description: '精致吊灯', effect: '舒适+8, 暴击+3%', levelRequired: 6, roomStyle: { lightColor: '#FDE68A', lightIntensity: 0.7 } },
-  { id: 'lighting-crystal', name: '水晶灯', emoji: '💎', price: 550, category: 'lighting', tier: 3, description: '华丽水晶灯', effect: '舒适+14, 暴击+5%', levelRequired: 10, roomStyle: { lightColor: '#E0E7FF', lightIntensity: 0.8 } },
-  { id: 'lighting-rainbow', name: '彩虹灯', emoji: '🌈', price: 1400, category: 'lighting', tier: 4, description: '梦幻彩虹灯', effect: '舒适+22, 全属性+8%', levelRequired: 18, roomStyle: { lightColor: '#DDD6FE', lightIntensity: 1.0 } },
+  { id: 'lighting-chandelier', name: '吊灯', emoji: '🪔', price: 220, category: 'lighting', tier: 2, description: '精致吊灯', effect: '舒适+8', levelRequired: 6, roomStyle: { lightColor: '#FDE68A', lightIntensity: 0.7 } },
+  { id: 'lighting-crystal', name: '水晶灯', emoji: '💎', price: 550, category: 'lighting', tier: 3, description: '华丽水晶灯', effect: '舒适+14', levelRequired: 10, roomStyle: { lightColor: '#E0E7FF', lightIntensity: 0.8 } },
+  { id: 'lighting-rainbow', name: '彩虹灯', emoji: '🌈', price: 1400, category: 'lighting', tier: 4, description: '梦幻彩虹灯', effect: '舒适+22', levelRequired: 18, roomStyle: { lightColor: '#DDD6FE', lightIntensity: 1.0 } },
 ];
 
 // ─── Pet Evolution Emojis ───────────────────────────────────────────────────
@@ -660,7 +660,8 @@ function calculatePracticeReward(
       streak,
       petBonus,
       critical,
-      modeMultiplier: modeBonus,
+      modeMultiplier: modeMultiplierValue,
+      modeBonus,
     },
     talentBonus: talentTotal,
   };
@@ -895,8 +896,9 @@ export const usePetStore = create<PetState & PetActions>()(
           }
         }
 
-        // Calculate login coins: base 5 + streak bonus
-        const loginCoins = 5 + Math.min(newStreak * 2, 20);
+        // Calculate login coins: base 5 + streak bonus (Lv5+ doubled, see LEVEL_UNLOCKS)
+        let loginCoins = 5 + Math.min(newStreak * 2, 20);
+        if (state.petLevel >= 5) loginCoins *= 2;
 
         set({
           lastLoginDate: today,

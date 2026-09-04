@@ -443,7 +443,7 @@ function GoalItem({
               <motion.span
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                transition={{ type: 'spring' as const, stiffness: 400, damping: 15 }}
               >
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
               </motion.span>
@@ -476,7 +476,7 @@ function GoalItem({
             <motion.div
               className="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm"
               animate={{ left: goal.isActive ? '18px' : '2px' }}
-              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              transition={{ type: 'spring' as const, stiffness: 500, damping: 30 }}
             />
           </button>
 

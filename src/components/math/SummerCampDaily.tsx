@@ -268,7 +268,7 @@ export default function SummerCampDaily() {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         subject: 'math',
         expression: current.expression,
-        correctAnswer: current.correctAnswer,
+        correctAnswer: typeof current.correctAnswer === "number" ? current.correctAnswer : String(current.correctAnswer),
         userAnswer: answerNum,
         operation: current.operation === 'add' ? '加法' : current.operation === 'subtract' ? '减法' : current.operation,
         difficulty: isTest ? 'hard' : 'medium',
@@ -495,14 +495,14 @@ export default function SummerCampDaily() {
           <motion.div
             initial={{ opacity: 0, scale: 0.85, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 18 }}
+            transition={{ type: 'spring' as const, stiffness: 200, damping: 18 }}
             className="bg-white rounded-3xl p-6 shadow-xl text-center mb-4"
           >
             <motion.div
               className="text-6xl mb-2"
               initial={{ scale: 0 }}
               animate={{ scale: 1, rotate: [0, 10, -10, 0] }}
-              transition={{ delay: 0.2, type: 'spring' }}
+              transition={{ delay: 0.2, type: 'spring' as const }}
             >
               {isBest ? '🏆' : accuracy >= 75 ? '🌟' : '💪'}
             </motion.div>
@@ -518,7 +518,7 @@ export default function SummerCampDaily() {
                   key={s}
                   initial={{ scale: 0, rotate: -180 }}
                   animate={{ scale: 1, rotate: 0 }}
-                  transition={{ delay: 0.3 + s * 0.15, type: 'spring', stiffness: 300 }}
+                  transition={{ delay: 0.3 + s * 0.15, type: 'spring' as const, stiffness: 300 }}
                 >
                   <Star className={`w-10 h-10 ${s <= stars ? 'fill-[#F59E0B] text-[#F59E0B]' : 'text-gray-200'}`} />
                 </motion.div>
@@ -674,7 +674,7 @@ export default function SummerCampDaily() {
           key={current.id}
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          transition={{ type: 'spring' as const, stiffness: 300, damping: 20 }}
           className="text-center mb-8"
         >
           <p className="text-xs text-gray-400 mb-3">算一算</p>

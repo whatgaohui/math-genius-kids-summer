@@ -340,7 +340,7 @@ function testMathTopic(topic: CurriculumTopic, sampleCount: number): TopicTestRe
         }
       }
       if (q.operation === 'divide') {
-        if (q.num1 > 81 || q.correctAnswer > 9) {
+        if (q.num1 > 81 || (typeof q.correctAnswer === 'number' && q.correctAnswer > 9)) {
           tablePass = false;
           tableDetail = `除法超出九九乘法表: ${q.num1} ÷ ${q.num2} = ${q.correctAnswer}`;
           break;

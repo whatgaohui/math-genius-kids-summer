@@ -66,13 +66,7 @@ export default function AdventureMode() {
     setSelectedOperation,
     setSelectedDifficulty,
     setAdventureLevel,
-    setLastGameSource,
-    setLastLevelName,
-    setLastLevelEmoji,
   } = useGameStore();
-
-  // Use direct setters — these exist on the store
-  const store = useGameStore();
 
   const handleBack = () => {
     playClickSound();
@@ -87,7 +81,7 @@ export default function AdventureMode() {
     setSelectedDifficulty(level.difficulty);
     setAdventureLevel(level.id);
 
-    // Set game source info via set function
+    // lastGameSource/lastLevelName/lastLevelEmoji 没有 setter action，直接 setState
     useGameStore.setState({
       lastGameSource: 'math-adventure',
       lastLevelName: level.name,

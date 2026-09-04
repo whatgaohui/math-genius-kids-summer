@@ -124,7 +124,7 @@ function StatCard({
     <motion.div
       initial={{ y: 20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 20, delay }}
+      transition={{ type: 'spring' as const, stiffness: 300, damping: 20, delay }}
     >
       <Card className="overflow-hidden border-0 py-0">
         <CardContent className={`bg-gradient-to-br ${color} p-4`}>
@@ -495,7 +495,7 @@ function WeeklyChart({ records }: { records: PracticeRecord[] }) {
                 <motion.div
                   initial={{ height: 0 }}
                   animate={{ height: `${(d.count / maxCount) * 80}px` }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 20, delay: i * 0.05 }}
+                  transition={{ type: 'spring' as const, stiffness: 300, damping: 20, delay: i * 0.05 }}
                   className="w-full rounded-t-md bg-gradient-to-t from-amber-400 to-orange-300 dark:from-amber-600 dark:to-orange-500 min-h-[4px]"
                 />
               )}

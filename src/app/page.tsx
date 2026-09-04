@@ -98,7 +98,8 @@ class ErrorBoundary extends Component<
       localStorage.removeItem('math-genius-pet-store')
       localStorage.removeItem('math-genius-onboarding')
       localStorage.removeItem('math-genius-learning-goals')
-      localStorage.removeItem('math-genius-error-book')
+      localStorage.removeItem('error-book')
+      localStorage.removeItem('summer-camp-store')
     } catch {
       // ignore
     }

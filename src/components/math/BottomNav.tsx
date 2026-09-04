@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 interface NavItem {
   key: string;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   color: string;
 }
 
@@ -49,6 +49,13 @@ const VIEW_TO_NAV: Record<string, string> = {
   'learning-goals': 'home',
   'parent-dashboard': 'home',
   'onboarding': 'home',
+  // 夏令营系列页面归属"首页"导航
+  'summer-camp': 'home',
+  'summer-daily': 'home',
+  'summer-free': 'home',
+  'summer-diagnostic': 'home',
+  'summer-skills': 'home',
+  'summer-report': 'home',
 };
 
 export default function BottomNav() {
@@ -104,7 +111,7 @@ export default function BottomNav() {
                   layoutId="nav-pill"
                   className="absolute -top-px left-1/2 -translate-x-1/2 h-[3px] w-5 rounded-full"
                   style={{ backgroundColor: color }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  transition={{ type: 'spring' as const, stiffness: 400, damping: 30 }}
                 />
               )}
             </button>

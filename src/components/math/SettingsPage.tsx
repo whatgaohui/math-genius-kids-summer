@@ -37,7 +37,7 @@ const fadeUp = {
   hidden: { opacity: 0, y: 16 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.05, duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: { delay: i * 0.05, duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] as [number, number, number, number] },
   }),
 };
 
@@ -112,7 +112,7 @@ function EditNameDialog({ open, onClose, currentName }: { open: boolean; onClose
         >
           <motion.div
             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            transition={{ type: 'spring' as const, stiffness: 350, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl safe-bottom"
           >
@@ -155,7 +155,7 @@ function AvatarPickerDialog({ open, onClose, currentAvatar }: { open: boolean; o
         >
           <motion.div
             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            transition={{ type: 'spring' as const, stiffness: 350, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl safe-bottom"
           >
@@ -217,7 +217,7 @@ function GradePickerDialog({ open, onClose, subject, currentGrade, currentSemest
         >
           <motion.div
             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            transition={{ type: 'spring' as const, stiffness: 350, damping: 30 }}
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl safe-bottom"
           >

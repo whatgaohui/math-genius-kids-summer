@@ -56,15 +56,22 @@ export default function ChinesePlay() {
       streak: number;
       petBonus: number;
       critical: number;
+      modeBonus: number;
       petLevel: number;
       coinBonusPercent: number;
       critChance: number;
+      talentBonus: number;
+      talentName?: string;
+      talentEmoji?: string;
     };
   } | null>(null);
 
   // Read config from shared mutable object
   const config = chinesePlayConfig;
   const isSpeedMode = config.isSpeed === true;
+
+  const petType = usePetStore((s) => s.petType);
+  const petName = usePetStore((s) => s.petName);
 
   const [questions, setQuestions] = useState<ChineseQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -188,7 +195,7 @@ export default function ChinesePlay() {
           addError({
             id: generateId(),
             subject: 'chinese',
-            prompt: currentQuestion.question || currentQuestion.prompt,
+            prompt: currentQuestion.prompt,
             correctOption: typeof correctOption === 'string' ? correctOption : String(correctOption ?? ''),
             userOption: typeof userOption === 'string' ? userOption : String(userOption ?? ''),
             operation: config.mode,
@@ -335,15 +342,19 @@ export default function ChinesePlay() {
       floorLevel: config.isAdventure ? config.adventureFloor : undefined,
     });
     if (result) {
+      const petStore = usePetStore.getState();
       setRewardInfo({
         coins: result.reward.coins,
         petXP: result.reward.petXP,
         isCriticalHit: result.reward.isCriticalHit,
         bonusDetails: {
           ...result.reward.bonuses,
-          petLevel: usePetStore.getState().petLevel,
-          coinBonusPercent: getCoinBonusPercent(usePetStore.getState().petLevel),
-          critChance: getCriticalHitChance(usePetStore.getState().petLevel),
+          petLevel: petStore.petLevel,
+          coinBonusPercent: getCoinBonusPercent(petStore.petLevel, petStore.petType),
+          critChance: getCriticalHitChance(petStore.petLevel, petStore.petType),
+          talentBonus: result.reward.talentBonus,
+          talentName: result.reward.talentName,
+          talentEmoji: result.reward.talentEmoji,
         },
       });
     }
@@ -410,6 +421,8 @@ export default function ChinesePlay() {
         adventureLevelEmoji={config.isAdventure ? lastLevelEmoji : undefined}
         coinsEarned={rewardInfo?.coins}
         petXPEarned={rewardInfo?.petXP}
+        petType={petType}
+        petName={petName}
         isCriticalHit={rewardInfo?.isCriticalHit ?? false}
         bonusDetails={rewardInfo?.bonusDetails}
         encouragementEmoji={encouragementEmoji}
@@ -608,7 +621,7 @@ export default function ChinesePlay() {
               initial={{ scale: 0, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0, opacity: 0, y: -20 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              transition={{ type: 'spring' as const, stiffness: 300, damping: 20 }}
               className="mb-3"
             >
               <Badge className="bg-gradient-to-r from-orange-400 to-red-500 text-white border-none px-3 py-1.5 text-sm gap-1 shadow-lg">
@@ -624,7 +637,7 @@ export default function ChinesePlay() {
           key={isSpeedMode ? currentQuestion.id : currentIndex}
           initial={{ x: 60, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          transition={{ type: 'spring' as const, stiffness: 300, damping: 30 }}
           className="w-full mb-5"
           ref={cardRef}
         >

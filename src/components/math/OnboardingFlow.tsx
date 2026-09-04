@@ -132,7 +132,7 @@ export default function OnboardingFlow() {
             animate="center"
             exit="exit"
             transition={{
-              type: 'spring',
+              type: 'spring' as const,
               stiffness: 300,
               damping: 30,
             }}
@@ -144,7 +144,7 @@ export default function OnboardingFlow() {
               initial={{ scale: 0.5, rotate: -10 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{
-                type: 'spring',
+                type: 'spring' as const,
                 stiffness: 260,
                 damping: 20,
                 delay: 0.1,
@@ -283,7 +283,7 @@ export default function OnboardingFlow() {
                     width: index === currentStep ? 24 : 10,
                     height: 10,
                   }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                  transition={{ type: 'spring' as const, stiffness: 400, damping: 25 }}
                 />
               </button>
             ))}

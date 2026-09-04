@@ -148,7 +148,7 @@ const containerVariants = {
 
 const itemVariants = {
   hidden: { opacity: 0, y: 16, scale: 0.97 },
-  show: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 300, damping: 24 } },
+  show: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring' as const, stiffness: 300, damping: 24 } },
 };
 
 const tabContentVariants = {
@@ -261,7 +261,7 @@ export default function EnglishHome() {
     resumeAudioContext();
     // Auto-switch to word-picture if selected mode is locked for current grade
     const modeConfig = ALL_ENGLISH_MODES.find(m => m.mode === selectedMode);
-    const isLocked = modeConfig?.minGrade && effectiveGrade < modeConfig.minGrade;
+    const isLocked = !!modeConfig?.minGrade && effectiveGrade < modeConfig.minGrade;
     const finalMode = isLocked ? 'word-picture' : selectedMode;
     setEnglishPlayConfig({ mode: finalMode, grade: effectiveGrade, count: selectedCount, isSpeed: false, isAdventure: false });
     setCurrentView('english-play');
@@ -320,7 +320,7 @@ export default function EnglishHome() {
     const mode = lastEnglishMode || 'free';
     if (mode === 'free') {
       const modeConfig = ALL_ENGLISH_MODES.find(m => m.mode === selectedMode);
-      const isLocked = modeConfig?.minGrade && effectiveGrade < modeConfig.minGrade;
+      const isLocked = !!modeConfig?.minGrade && effectiveGrade < modeConfig.minGrade;
       const finalMode = isLocked ? 'word-picture' : selectedMode;
       setEnglishPlayConfig({ mode: finalMode, grade: effectiveGrade, count: selectedCount, isSpeed: false, isAdventure: false });
       setCurrentView('english-play');
@@ -361,7 +361,7 @@ export default function EnglishHome() {
         <div className="grid grid-cols-2 gap-2">
           {ALL_ENGLISH_MODES.map((modeConfig) => {
             const isSelected = selectedMode === modeConfig.mode;
-            const isLocked = modeConfig.minGrade && effectiveGrade < modeConfig.minGrade;
+            const isLocked = !!modeConfig.minGrade && effectiveGrade < modeConfig.minGrade;
             return (
               <button
                 key={modeConfig.mode}
@@ -488,7 +488,7 @@ export default function EnglishHome() {
         <p className="text-xs font-semibold text-gray-400 mb-2 px-1">练习模式</p>
         <div className="grid grid-cols-2 gap-2">
           {getEnglishModesForGrade(effectiveGrade).map((modeConfig) => {
-            const isLocked = modeConfig.minGrade && effectiveGrade < modeConfig.minGrade;
+            const isLocked = !!modeConfig.minGrade && effectiveGrade < modeConfig.minGrade;
             return (
               <button
                 key={modeConfig.mode}

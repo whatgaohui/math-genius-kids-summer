@@ -142,7 +142,7 @@ export default function CelebrationEffect({
             initial={{ scale: 0, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.5, opacity: 0, y: -10 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+            transition={{ type: 'spring' as const, stiffness: 300, damping: 15 }}
             className="bg-white/95 backdrop-blur-sm rounded-3xl px-8 py-5 shadow-2xl text-center border border-amber-100"
           >
             <motion.span

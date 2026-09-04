@@ -134,11 +134,11 @@ function speakWithNativeBridge(
             window._ttsCallbackCounter = 0;
           }
 
-          const callbackId = ++window._ttsCallbackCounter;
+          const callbackId = ++(window._ttsCallbackCounter as number);
 
           // Set up callback
-          window._ttsCallbacks[callbackId] = (type: string, _msg: string) => {
-            delete window._ttsCallbacks[callbackId];
+          (window._ttsCallbacks as Record<number, (type: string, msg: string) => void>)[callbackId] = (type: string, _msg: string) => {
+            delete (window._ttsCallbacks as Record<number, (type: string, msg: string) => void>)[callbackId];
             if (type === 'error') {
               console.warn('[TTS] Native bridge error:', _msg);
             }
@@ -546,11 +546,8 @@ async function speakWithBackend(
         currentBufferSource = source;
 
         source.onended = () => { currentBufferSource = null; resolve(); };
-        source.onerror = () => {
-          currentBufferSource = null;
-          playWithHtmlAudio(arrayBuffer).then(resolve).catch(reject);
-        };
-
+        // AudioBufferSourceNode 没有 onerror；解码失败会走外层 catch，
+        // 播放中的错误由 onended/超时兜底
         try {
           source.start(0);
         } catch {

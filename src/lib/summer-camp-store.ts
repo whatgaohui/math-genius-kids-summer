@@ -275,16 +275,22 @@ export function getTotalQuestions(state: SummerCampState): number {
   );
 }
 
-// 计算从开营到今天的连续打卡天数
+// 计算连续打卡天数（按实际完成日期；最近一次完成不是今天/昨天则视为 0）
 export function getStreakDays(state: SummerCampState): number {
   if (!state.startDate) return 0;
   const records = Object.values(state.completedDays).filter((d) => d.completed);
   if (records.length === 0) return 0;
-  // 简单连续：从最近一天往回数
-  const days = records.map((r) => r.day).sort((a, b) => b - a);
+  const dates = [...new Set(records.map((r) => r.date.split('T')[0]))].sort((a, b) => (a < b ? 1 : -1));
+  const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  // 最近一次打卡已中断（既不是今天也不是昨天），连续天数归零
+  if (dates[0] !== today && dates[0] !== yesterday) return 0;
   let streak = 1;
-  for (let i = 1; i < days.length; i++) {
-    if (days[i] === days[i - 1] - 1) streak++;
+  for (let i = 1; i < dates.length; i++) {
+    const prev = new Date(dates[i - 1]);
+    const curr = new Date(dates[i]);
+    const diff = Math.round((prev.getTime() - curr.getTime()) / 86400000);
+    if (diff === 1) streak++;
     else break;
   }
   return streak;

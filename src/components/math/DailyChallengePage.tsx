@@ -314,7 +314,7 @@ export default function DailyChallengePage() {
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            transition={{ type: 'spring' as const, stiffness: 300, damping: 20 }}
             className="text-center"
           >
             {/* Trophy Animation */}
@@ -496,7 +496,7 @@ export default function DailyChallengePage() {
                 initial={{ scale: 0, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0, opacity: 0, y: -20 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                transition={{ type: 'spring' as const, stiffness: 300, damping: 20 }}
                 className="mb-3"
               >
                 <Badge className="bg-gradient-to-r from-orange-400 to-red-500 text-white border-none px-3 py-1.5 text-sm gap-1 shadow-lg">
@@ -512,7 +512,7 @@ export default function DailyChallengePage() {
             key={challengeState.currentIndex}
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            transition={{ type: 'spring' as const, stiffness: 300, damping: 25 }}
             className="w-full mb-4"
           >
             <div className={`
@@ -678,7 +678,7 @@ export default function DailyChallengePage() {
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5" />
-                    <span className="text-xs">限时挑战</span>
+                    <span className="text-xs">不限时</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Star className="w-3.5 h-3.5" />

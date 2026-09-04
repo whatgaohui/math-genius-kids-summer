@@ -54,7 +54,7 @@ const containerVariants = {
 
 const itemVariants = {
   hidden: { opacity: 0, y: 12, scale: 0.97 },
-  show: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 350, damping: 28 } },
+  show: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring' as const, stiffness: 350, damping: 28 } },
 };
 
 // ─── Reusable UI Components ─────────────────────────────────────────────────

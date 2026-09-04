@@ -42,16 +42,19 @@ export type {
 } from './types';
 
 // ─── Math Bank ───────────────────────────────────────────────────────────────
-export { registerMathBank } from './math';
-export type { MathQuestionBank } from './math';
+export { registerMathBank, mathQuestionBank } from './math';
 
 // ─── Chinese Bank ────────────────────────────────────────────────────────────
-export { registerChineseBank } from './chinese';
-export type { ChineseQuestionBank } from './chinese';
+export { registerChineseBank, chineseBank } from './chinese';
 
 // ─── English Bank ────────────────────────────────────────────────────────────
-export { registerEnglishBank } from './english';
-export type { EnglishQuestionBank } from './english';
+export { registerEnglishBank, englishBank } from './english';
+
+// Registry needs to be in scope for the helpers below, not just re-exported
+import { QuestionBankRegistry } from './registry';
+import { registerMathBank } from './math';
+import { registerChineseBank } from './chinese';
+import { registerEnglishBank } from './english';
 
 // ─── Auto-initialize all banks ───────────────────────────────────────────────
 // This runs once when the module is first imported.
@@ -65,14 +68,6 @@ let _initialized = false;
 export function initializeQuestionBanks(): void {
   if (_initialized) return;
   _initialized = true;
-
-  // Direct imports (no circular dependency since each bank only imports types)
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { registerMathBank } = require('./math') as typeof import('./math');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { registerChineseBank } = require('./chinese') as typeof import('./chinese');
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { registerEnglishBank } = require('./english') as typeof import('./english');
 
   registerMathBank();
   registerChineseBank();

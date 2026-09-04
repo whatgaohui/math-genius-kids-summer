@@ -37,7 +37,7 @@ const itemVariants = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { type: 'spring', stiffness: 300, damping: 24 },
+    transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
   },
 };
 
@@ -419,7 +419,7 @@ function WeeklySummaryCard({ records }: { records: PracticeRecord[] }) {
                     <motion.div
                       initial={{ height: 0 }}
                       animate={{ height: b.count > 0 ? `${Math.max((b.count / maxCount) * 32, 4)}px` : '2px' }}
-                      transition={{ type: 'spring', stiffness: 300, damping: 20, delay: i * 0.05 }}
+                      transition={{ type: 'spring' as const, stiffness: 300, damping: 20, delay: i * 0.05 }}
                       className={`w-full rounded-sm ${
                         b.count > 0
                           ? b.isToday
@@ -797,7 +797,7 @@ function DailyActivityGrid({ records }: { records: PracticeRecord[] }) {
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  transition={{ delay: 0.1 + i * 0.05, type: 'spring', stiffness: 300 }}
+                  transition={{ delay: 0.1 + i * 0.05, type: 'spring' as const, stiffness: 300 }}
                   className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                     day.isToday
                       ? 'ring-2 ring-sky-400 ring-offset-1'

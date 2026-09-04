@@ -298,7 +298,7 @@ function FurnitureZone({
       }}
       initial={{ scale: 0, opacity: 0, y: 10 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 180, damping: 18 }}
+      transition={{ type: 'spring' as const, stiffness: 180, damping: 18 }}
       onClick={() => setShowUnequip(!showUnequip)}
     >
       <motion.div
@@ -585,7 +585,7 @@ function RugOnFloor({ rugEmoji }: { rugEmoji: string | null }) {
       style={{ left: '30%', bottom: '8%', width: '40%', height: '15%' }}
       initial={{ scale: 0 }}
       animate={{ scale: 1 }}
-      transition={{ type: 'spring', stiffness: 150, damping: 15 }}
+      transition={{ type: 'spring' as const, stiffness: 150, damping: 15 }}
     >
       <div className="w-full h-[60%] bg-gradient-to-r from-rose-200/30 via-amber-200/30 to-rose-200/30 rounded-full flex items-center justify-center border border-rose-200/20">
         <span className="text-2xl opacity-40">{rugEmoji}</span>

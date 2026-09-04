@@ -136,9 +136,13 @@ interface GameState {
       streak: number;
       petBonus: number;
       critical: number;
+      modeBonus: number;
       petLevel: number;
       coinBonusPercent: number;
       critChance: number;
+      talentBonus: number;
+      talentName?: string;
+      talentEmoji?: string;
     };
   } | null;
 
@@ -226,7 +230,7 @@ interface GameActions {
   }) => { record: PracticeRecord; reward: PracticeReward } | null;
 
   // ── Achievements ──
-  refreshAchievements: () => string[];
+  refreshAchievements: (sessionStats?: { maxCombo?: number }) => string[];
 
   // ── Utilities ──
   clearHistory: () => void;
@@ -554,6 +558,8 @@ export const useGameStore = create<GameState & GameActions>()(
           timeMs: totalTimeMs,
           playerStreak: newStreak,
           subject: session.sessionSubject,
+          mode: session.sessionMode,
+          floorLevel: session.sessionMode === 'adventure' ? state.adventureLevel : undefined,
         });
         petStore.awardPracticeReward(reward);
 
@@ -596,7 +602,7 @@ export const useGameStore = create<GameState & GameActions>()(
           dailyChallengeCompletedDates: newDailyDates,
         });
 
-        get().refreshAchievements();
+        get().refreshAchievements({ maxCombo: session.sessionMaxCombo });
 
         // Update learning goals progress
         const goalsStore = useLearningGoalsStore.getState();
@@ -821,7 +827,7 @@ export const useGameStore = create<GameState & GameActions>()(
 
         set(baseUpdate);
 
-        get().refreshAchievements();
+        get().refreshAchievements({ maxCombo });
 
         // Update learning goals progress
         const goalsStore = useLearningGoalsStore.getState();
@@ -831,7 +837,7 @@ export const useGameStore = create<GameState & GameActions>()(
       },
 
       // ── Achievements ──
-      refreshAchievements: (): string[] => {
+      refreshAchievements: (sessionStats?: { maxCombo?: number }): string[] => {
         const state = get();
         const historySummary: PracticeRecordSummary[] = state.practiceHistory.map((r) => ({
           correct: r.correct,
@@ -847,8 +853,8 @@ export const useGameStore = create<GameState & GameActions>()(
           streak: state.streak,
           practiceHistory: historySummary,
           unlockedAchievements: state.unlockedAchievements,
-          petLevel: 1, // Will be updated by pet store
-          maxCombo: state.session?.sessionMaxCombo ?? state.practiceHistory.reduce((max, _r) => max, 0),
+          petLevel: usePetStore.getState().petLevel,
+          maxCombo: sessionStats?.maxCombo ?? 0,
           adventureMaxFloor: state.adventureLevel,
           chineseAdventureMaxFloor: state.chineseAdventureLevel,
           englishAdventureMaxFloor: state.englishAdventureLevel,

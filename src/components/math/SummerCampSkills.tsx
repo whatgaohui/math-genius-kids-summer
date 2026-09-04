@@ -203,7 +203,7 @@ function PracticePlayer({ skill, onDone }: { skill: SkillContent; onDone: (corre
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-6">
-        <motion.div key={current.id} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }} className="text-center mb-8">
+        <motion.div key={current.id} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring' as const, stiffness: 300, damping: 20 }} className="text-center mb-8">
           <p className="text-xs text-gray-400 mb-3">用刚学的方法算一算</p>
           <div className="text-6xl font-black text-gray-800 tracking-wider">
             {current.expression} = <span style={{ color: skill.color }}>?</span>

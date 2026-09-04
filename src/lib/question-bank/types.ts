@@ -6,11 +6,11 @@
 // compatible with the registry and the rest of the app.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import type { Subject, Grade, Semester } from './curriculum-config';
+import type { Subject, Grade, Semester } from '../curriculum-config';
 
 // ─── Re-export curriculum types for convenience ──────────────────────────────
 export type { Subject, Grade, Semester };
-export { GRADE_LABELS, SUBJECT_LABELS, SUBJECT_EMOJIS } from './curriculum-config';
+export { GRADE_LABELS, SUBJECT_LABELS, SUBJECT_EMOJIS } from '../curriculum-config';
 
 // ─── Base Question Shape ─────────────────────────────────────────────────────
 // Every question in any subject bank MUST have these fields at minimum.

@@ -5,6 +5,8 @@ export interface Achievement {
   emoji: string;
   name: string;
   description: string;
+  /** 成就分类（帮助攻略页按此分组展示；未标注的归入常规练习成就） */
+  category?: 'speed' | 'pet' | 'practice' | 'stars' | 'streak' | 'combo' | 'xp' | 'adventure' | 'subject';
   /** Function to check if the achievement should be unlocked */
   check: (context: AchievementContext) => boolean;
 }
@@ -171,6 +173,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     emoji: '🐾',
     name: '宠物伙伴',
     description: '宠物达到5级',
+    category: 'pet',
     check: (ctx) => ctx.petLevel >= 5,
   },
 
@@ -180,6 +183,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     emoji: '⚡',
     name: '速度新星',
     description: '完成第一次限时挑战',
+    category: 'speed',
     check: (ctx) => ctx.practiceHistory.some(r => r.mode === 'speed'),
   },
   {
@@ -187,6 +191,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     emoji: '🚀',
     name: '速度达人',
     description: '累计完成10次限时挑战',
+    category: 'speed',
     check: (ctx) => ctx.practiceHistory.filter(r => r.mode === 'speed').length >= 10,
   },
   {
@@ -194,6 +199,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     emoji: '💨',
     name: '闪电满分',
     description: '限时挑战中获得满分',
+    category: 'speed',
     check: (ctx) => ctx.practiceHistory.some(r => r.mode === 'speed' && r.correct === r.total && r.total >= 5),
   },
 

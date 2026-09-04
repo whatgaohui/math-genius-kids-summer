@@ -57,7 +57,7 @@ const itemVariants = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { type: 'spring', stiffness: 300, damping: 24 },
+    transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
   },
 };
 
@@ -118,7 +118,9 @@ export default function ErrorBookPage() {
     const subject = activeFilter === 'math' || activeFilter === 'chinese' || activeFilter === 'english'
       ? (activeFilter as Subject)
       : undefined;
-    const questions = getPendingReviews().slice(0, 10);
+    const questions = getPendingReviews()
+      .filter((q) => !subject || q.subject === subject)
+      .slice(0, 10);
     if (questions.length === 0) return;
     setReviewQuestions(questions);
     setReviewIndex(0);
@@ -204,7 +206,7 @@ export default function ErrorBookPage() {
             key={reviewIndex}
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            transition={{ type: 'spring' as const, stiffness: 300, damping: 25 }}
           >
             <Card className="overflow-hidden border-0 shadow-lg py-0">
               <CardContent className="p-6">
@@ -362,22 +364,26 @@ export default function ErrorBookPage() {
         )}
 
         {/* Start Review Button */}
-        {pendingReviews.length > 0 && (
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="mb-5"
-          >
-            <Button
-              onClick={startReview}
-              className="w-full h-14 rounded-2xl bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-bold text-base shadow-lg shadow-red-200/50 active:scale-95 transition-transform"
+        {(() => {
+          const pendingInView = filteredErrors.filter((e) => !e.mastered).length;
+          if (pendingInView === 0) return null;
+          return (
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="mb-5"
             >
-              <RotateCcw className="w-5 h-5 mr-2" />
-              开始复习（{Math.min(pendingReviews.length, 10)} 题待复习）
-            </Button>
-          </motion.div>
-        )}
+              <Button
+                onClick={startReview}
+                className="w-full h-14 rounded-2xl bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-bold text-base shadow-lg shadow-red-200/50 active:scale-95 transition-transform"
+              >
+                <RotateCcw className="w-5 h-5 mr-2" />
+                开始复习（{Math.min(pendingInView, 10)} 题待复习）
+              </Button>
+            </motion.div>
+          );
+        })()}
 
         {/* Filter Tabs */}
         <motion.div

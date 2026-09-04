@@ -50,6 +50,8 @@ test
 prompt
 
 server.log
+# GUI 测试临时截图
+gui-test-screenshots/
 # Skills directory
 /skills/
 # static-build temp dir & npm lockfile (repo uses bun.lock)

@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, CheckCircle2, Clock, Delete, Lightbulb, Play, RotateCcw,
-  Star, TrendingUp, Trophy, XCircle, Zap, ChevronRight, Target, AlertTriangle,
+  Star, TrendingUp, Trophy, XCircle, Zap, ChevronRight, Target, AlertTriangle, Lock,
 } from 'lucide-react';
 import { useSummerCampStore } from '@/lib/summer-camp-store';
 import type { DiagnosticResult } from '@/lib/summer-camp-store';
@@ -51,9 +51,12 @@ export default function SummerCampDiagnostic() {
   const [localResult, setLocalResult] = useState<DiagnosticResult | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // pre or post?  pre if not done, else post (only allow post near end)
-  const isPost = !!camp.diagnosticPre;
+  // pre or post?  前测未做 → 前测；前测已做且完成天数达到门槛 → 结营后测；
+  // 否则后测未解锁（避免任意时刻重测覆盖 diagnosticPost，破坏前后对比报告）
+  const POST_UNLOCK_DAYS = 40;
   const completedDayCount = useMemo(() => Object.values(camp.completedDays).filter((d) => d.completed).length, [camp.completedDays]);
+  const isPost = !!camp.diagnosticPre && completedDayCount >= POST_UNLOCK_DAYS;
+  const postLocked = !!camp.diagnosticPre && !isPost;
 
   useEffect(() => {
     const h = () => resumeAudioContext();
@@ -140,7 +143,7 @@ export default function SummerCampDiagnostic() {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         subject: 'math',
         expression: current.question.expression,
-        correctAnswer: current.question.correctAnswer,
+        correctAnswer: typeof current.question.correctAnswer === "number" ? current.question.correctAnswer : String(current.question.correctAnswer),
         userAnswer: answerNum,
         operation: current.question.operation === 'add' ? '加法' : '减法',
         difficulty: 'hard',
@@ -224,12 +227,18 @@ export default function SummerCampDiagnostic() {
               ))}
             </div>
 
-            <button
-              onClick={() => { playClickSound(); startTest(); }}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#10B981] to-[#059669] text-white text-sm font-black shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2"
-            >
-              <Play className="w-4 h-4 fill-white" /> 开始{isPost ? '测评' : '诊断'}
-            </button>
+            {postLocked ? (
+              <div className="w-full py-3.5 rounded-2xl bg-gray-100 text-gray-400 text-sm font-black flex items-center justify-center gap-2">
+                <Lock className="w-4 h-4" /> 完成 {POST_UNLOCK_DAYS} 天训练后解锁结营测评（已完成 {completedDayCount} 天）
+              </div>
+            ) : (
+              <button
+                onClick={() => { playClickSound(); startTest(); }}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#10B981] to-[#059669] text-white text-sm font-black shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2"
+              >
+                <Play className="w-4 h-4 fill-white" /> 开始{isPost ? '测评' : '诊断'}
+              </button>
+            )}
           </motion.div>
 
           {!isPost && (
@@ -284,14 +293,14 @@ export default function SummerCampDiagnostic() {
           <motion.div
             initial={{ opacity: 0, scale: 0.85, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 18 }}
+            transition={{ type: 'spring' as const, stiffness: 200, damping: 18 }}
             className="bg-white rounded-3xl p-6 shadow-xl text-center mb-4"
           >
             <motion.div
               className="text-6xl mb-2"
               initial={{ scale: 0 }}
               animate={{ scale: 1, rotate: [0, 10, -10, 0] }}
-              transition={{ delay: 0.2, type: 'spring' }}
+              transition={{ delay: 0.2, type: 'spring' as const }}
             >
               {isGood ? '🏆' : isMid ? '👍' : '💪'}
             </motion.div>
@@ -427,7 +436,7 @@ export default function SummerCampDiagnostic() {
           key={current.question.id}
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          transition={{ type: 'spring' as const, stiffness: 300, damping: 20 }}
           className="text-center mb-8"
         >
           <p className="text-xs text-gray-400 mb-3">算一算</p>

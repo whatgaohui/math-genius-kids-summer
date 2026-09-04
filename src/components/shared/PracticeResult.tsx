@@ -78,6 +78,7 @@ export interface PracticeResultProps {
     streak: number;
     petBonus: number;
     critical: number;
+    modeBonus: number;
     petLevel: number;
     coinBonusPercent: number;
     critChance: number;
@@ -248,7 +249,7 @@ const starVariants = {
   hidden: { scale: 0, rotate: -180, opacity: 0 },
   visible: {
     scale: 1, rotate: 0, opacity: 1,
-    transition: { type: 'spring', stiffness: 300, damping: 12 },
+    transition: { type: 'spring' as const, stiffness: 300, damping: 12 },
   },
 }
 
@@ -256,7 +257,7 @@ const cardSlideUp = {
   hidden: { opacity: 0, y: 30 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: 0.1 * i + 0.4, duration: 0.5, ease: 'easeOut' },
+    transition: { delay: 0.1 * i + 0.4, duration: 0.5, ease: 'easeOut' as const },
   }),
 }
 
@@ -384,7 +385,7 @@ export function PracticeResult(props: PracticeResultProps) {
               {modeEmoji && <span className="text-lg">{modeEmoji}</span>}
               <span className="text-sm font-semibold text-gray-600">{resolvedModeLabel}</span>
             </div>
-            <PetCompanionBadge />
+            <PetCompanionBadge petType={effectivePetType} petName={effectivePetName} />
           </motion.div>
         )}
 
@@ -445,7 +446,7 @@ export function PracticeResult(props: PracticeResultProps) {
                 className="text-6xl font-black text-white tabular-nums"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 10, delay: 0.6 }}
+                transition={{ type: 'spring' as const, stiffness: 200, damping: 10, delay: 0.6 }}
               >
                 {correct}
               </motion.div>
@@ -532,7 +533,7 @@ export function PracticeResult(props: PracticeResultProps) {
               <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 15, delay: 0.3 }}
+                transition={{ type: 'spring' as const, stiffness: 300, damping: 15, delay: 0.3 }}
                 className="rounded-2xl bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-400 p-4 text-white shadow-lg mb-3 overflow-hidden relative"
               >
                 <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMTAiIGN5PSIxMCIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjEpIi8+PC9zdmc+')] opacity-50" />
@@ -636,10 +637,7 @@ export function PracticeResult(props: PracticeResultProps) {
         {bonusDetails && coinsEarned !== undefined && coinsEarned > 0 && (
           <motion.div custom={2.75} initial="hidden" animate="visible" variants={cardSlideUp}>
             <Card className="border-0 shadow-md overflow-hidden">
-              <button
-                onClick={() => setShowQuestionReview(false) || null}
-                className="w-full"
-              >
+              <div className="w-full">
                 <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 border-b border-amber-100">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
@@ -657,7 +655,7 @@ export function PracticeResult(props: PracticeResultProps) {
                     </p>
                   )}
                 </div>
-              </button>
+              </div>
               <CardContent className="p-0">
                 <div className="divide-y divide-gray-50">
                   <BonusRow emoji="📝" label="答对奖励" value={bonusDetails.base} color="text-gray-600" />
@@ -666,6 +664,7 @@ export function PracticeResult(props: PracticeResultProps) {
                   {bonusDetails.perfect > 0 && <BonusRow emoji="💯" label="满分奖励" value={bonusDetails.perfect} color="text-rose-500" />}
                   {bonusDetails.speed > 0 && <BonusRow emoji="⚡" label="速度奖励" value={bonusDetails.speed} color="text-sky-500" />}
                   {bonusDetails.streak > 0 && <BonusRow emoji="📅" label="连续登录" value={bonusDetails.streak} color="text-violet-500" />}
+                  {bonusDetails.modeBonus > 0 && <BonusRow emoji="⚡" label="模式加成" value={bonusDetails.modeBonus} color="text-rose-500" />}
                   {bonusDetails.petBonus > 0 && <BonusRow emoji="🐾" label={`宠物加成 (+${bonusDetails.coinBonusPercent}%)`} value={bonusDetails.petBonus} color="text-emerald-500" highlight />}
                   {bonusDetails.talentBonus > 0 && (
                     <BonusRow

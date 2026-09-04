@@ -8,7 +8,7 @@ import {
   GraduationCap, Award, BookOpen, FileBarChart, Rocket, Leaf,
 } from 'lucide-react';
 import { useSummerCampStore, getCompletedDayCount, getTotalAccuracy, getStreakDays } from '@/lib/summer-camp-store';
-import { DAYS, PHASES, TOTAL_DAYS, getDayPlan, getCurrentDay, getPhaseInfo, getTotalQuestions } from '@/lib/summer-camp/plan';
+import { DAYS, PHASES, TOTAL_DAYS, getDayPlan, getPhaseInfo, getTotalQuestions } from '@/lib/summer-camp/plan';
 import { playClickSound } from '@/lib/sound';
 import { useGameStore } from '@/lib/game-store';
 import BottomNav from './BottomNav';
@@ -19,7 +19,7 @@ const fadeUp = {
   hidden: { opacity: 0, y: 20 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.06, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: { delay: i * 0.06, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as [number, number, number, number] },
   }),
 };
 
@@ -166,9 +166,10 @@ export default function SummerCampHome() {
   const camp = useSummerCampStore();
   const [selectedPhase, setSelectedPhase] = useState<number>(0);
 
-  // 当前应训练天数（按日历）与 store 中 currentDay 取较大
-  const calendarDay = useMemo(() => getCurrentDay(camp.startDate), [camp.startDate]);
-  const activeDay = Math.max(camp.currentDay, calendarDay || 1, 1);
+  // 今日任务与 SummerCampDaily 的训练日保持一致：store.currentDay 是
+  // "第一个未完成的天"（recordDay 完成后自动推进），漏训的天按顺序补。
+  // calendarDay 只反映开营日历进度，不参与决定训练内容。
+  const activeDay = Math.min(Math.max(camp.currentDay, 1), TOTAL_DAYS);
   const todayPlan = getDayPlan(Math.min(activeDay, TOTAL_DAYS));
   const completedCount = getCompletedDayCount(camp);
   const overallAccuracy = getTotalAccuracy(camp);

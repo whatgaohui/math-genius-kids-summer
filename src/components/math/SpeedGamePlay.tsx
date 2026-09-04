@@ -371,7 +371,7 @@ export default function SpeedGamePlay() {
               initial={{ scale: 0, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0, opacity: 0, y: -20 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              transition={{ type: 'spring' as const, stiffness: 300, damping: 20 }}
               className="mb-4"
             >
               <Badge className="bg-gradient-to-r from-orange-400 to-red-500 text-white border-none px-3 py-1.5 text-sm gap-1 shadow-lg">
@@ -387,7 +387,7 @@ export default function SpeedGamePlay() {
           key={currentQuestion.id}
           initial={{ opacity: 0, x: 60 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          transition={{ type: 'spring' as const, stiffness: 300, damping: 30 }}
           className="w-full mb-6"
         >
           <div className={`

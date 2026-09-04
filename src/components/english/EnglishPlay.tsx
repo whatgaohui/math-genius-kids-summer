@@ -42,6 +42,8 @@ const CONFETTI = Array.from({ length: 12 }, (_, i) => ({
 
 export default function EnglishPlay() {
   const { setCurrentView, completeSubjectSession, soundEnabled, lastLevelName, lastLevelEmoji } = useGameStore();
+  const petType = usePetStore((s) => s.petType);
+  const petName = usePetStore((s) => s.petName);
   const [rewardInfo, setRewardInfo] = useState<{
     coins: number;
     petXP: number;
@@ -55,9 +57,13 @@ export default function EnglishPlay() {
       streak: number;
       petBonus: number;
       critical: number;
+      modeBonus: number;
       petLevel: number;
       coinBonusPercent: number;
       critChance: number;
+      talentBonus: number;
+      talentName?: string;
+      talentEmoji?: string;
     };
   } | null>(null);
 
@@ -205,7 +211,7 @@ export default function EnglishPlay() {
           addError({
             id: generateId(),
             subject: 'english',
-            prompt: currentQuestion.question || currentQuestion.prompt,
+            prompt: currentQuestion.prompt,
             correctOption: typeof correctOption === 'string' ? correctOption : String(correctOption ?? ''),
             userOption: typeof userOption === 'string' ? userOption : String(userOption ?? ''),
             operation: config.mode,
@@ -319,15 +325,19 @@ export default function EnglishPlay() {
       floorLevel: config.isAdventure ? config.adventureFloor : undefined,
     });
     if (result) {
+      const petStore = usePetStore.getState();
       setRewardInfo({
         coins: result.reward.coins,
         petXP: result.reward.petXP,
         isCriticalHit: result.reward.isCriticalHit,
         bonusDetails: {
           ...result.reward.bonuses,
-          petLevel: usePetStore.getState().petLevel,
-          coinBonusPercent: getCoinBonusPercent(usePetStore.getState().petLevel),
-          critChance: getCriticalHitChance(usePetStore.getState().petLevel),
+          petLevel: petStore.petLevel,
+          coinBonusPercent: getCoinBonusPercent(petStore.petLevel, petStore.petType),
+          critChance: getCriticalHitChance(petStore.petLevel, petStore.petType),
+          talentBonus: result.reward.talentBonus,
+          talentName: result.reward.talentName,
+          talentEmoji: result.reward.talentEmoji,
         },
       });
     }
@@ -395,6 +405,7 @@ export default function EnglishPlay() {
     return (
       <PracticeResult
         correct={correct}
+        wrong={wrong}
         total={effectiveTotal}
         timeMs={totalTime}
         maxCombo={maxCombo}
@@ -408,6 +419,8 @@ export default function EnglishPlay() {
         adventureLevelEmoji={config.isAdventure ? lastLevelEmoji : undefined}
         coinsEarned={rewardInfo?.coins}
         petXPEarned={rewardInfo?.petXP}
+        petType={petType}
+        petName={petName}
         isCriticalHit={rewardInfo?.isCriticalHit ?? false}
         bonusDetails={rewardInfo?.bonusDetails}
         encouragementEmoji={encouragementEmoji}
@@ -541,7 +554,7 @@ export default function EnglishPlay() {
                 initial={{ scale: 0, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0, opacity: 0, y: -20 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                transition={{ type: 'spring' as const, stiffness: 300, damping: 20 }}
                 className="mb-3"
               >
                 <Badge className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white border-none px-3 py-1.5 text-sm gap-1 shadow-lg">
@@ -557,7 +570,7 @@ export default function EnglishPlay() {
             key={currentIndex}
             initial={{ x: 60, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            transition={{ type: 'spring' as const, stiffness: 300, damping: 30 }}
             className="w-full mb-5"
             ref={cardRef}
           >
@@ -777,7 +790,7 @@ export default function EnglishPlay() {
               initial={{ scale: 0, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0, opacity: 0, y: -20 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              transition={{ type: 'spring' as const, stiffness: 300, damping: 20 }}
               className="mb-3"
             >
               <Badge className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white border-none px-3 py-1.5 text-sm gap-1 shadow-lg">
@@ -793,7 +806,7 @@ export default function EnglishPlay() {
           key={currentIndex}
           initial={{ x: 60, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          transition={{ type: 'spring' as const, stiffness: 300, damping: 30 }}
           className="w-full mb-5"
           ref={cardRef}
         >

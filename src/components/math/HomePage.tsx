@@ -20,7 +20,7 @@ const fadeUp = {
   hidden: { opacity: 0, y: 20 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.06, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: { delay: i * 0.06, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as [number, number, number, number] },
   }),
 };
 
@@ -347,7 +347,7 @@ export default function HomePage() {
               initial={{ scale: 0.7, y: 30 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.85, y: 15 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+              transition={{ type: 'spring' as const, stiffness: 350, damping: 25 }}
               className="relative w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
@@ -365,7 +365,7 @@ export default function HomePage() {
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  transition={{ type: 'spring', delay: 0.2, stiffness: 300 }}
+                  transition={{ type: 'spring' as const, delay: 0.2, stiffness: 300 }}
                   className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#667eea]/10 to-[#764ba2]/10 px-6 py-3 mb-5"
                 >
                   <Coins className="w-6 h-6 text-[#FF6B35]" />
