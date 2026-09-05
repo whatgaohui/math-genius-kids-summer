@@ -362,15 +362,17 @@ export default function ChineseHome() {
     playClickSound();
     resumeAudioContext();
     const mode = lastChineseMode || 'free';
-    if (mode === 'free') {
-      setChinesePlayConfig({ mode: activeMode, grade: effectiveGrade, count: selectedCount, isSpeed: false, speedTimeLimit: 60, isAdventure: false, adventureFloor: 0 });
-      setCurrentView('chinese-play');
-    } else if (mode === 'speed') {
+    // 历史记录里的 mode 可能是具体练习模式（recognize-pinyin 等）而非 free/speed/adventure，
+    // 未识别的一律按自由练习兜底，避免按钮点击无反应
+    if (mode === 'speed') {
       setChinesePlayConfig({ mode: activeSpeedMode, grade: effectiveGrade, count: 50, isSpeed: true, speedTimeLimit: chineseSpeedTimeLimit, isAdventure: false, adventureFloor: 0 });
       setCurrentView('chinese-play');
     } else if (mode === 'adventure') {
       const level = ALL_LEVELS.find((l) => l.id === nextFloor);
       if (level) handleStartLevel(level);
+    } else {
+      setChinesePlayConfig({ mode: activeMode, grade: effectiveGrade, count: selectedCount, isSpeed: false, speedTimeLimit: 60, isAdventure: false, adventureFloor: 0 });
+      setCurrentView('chinese-play');
     }
   };
 

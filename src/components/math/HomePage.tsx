@@ -78,12 +78,18 @@ export default function HomePage() {
 
   const hasCompletedOnboarding = useOnboardingStore((s) => s.hasCompletedOnboarding);
 
+  // 首次运行直接进引导；渲染守卫见组件末尾（未完成引导时不再渲染首页内容，
+  // 修复旧逻辑先闪现完整首页 500ms 再切引导的问题）
   useEffect(() => {
     if (!hasCompletedOnboarding) {
-      const timer = setTimeout(() => setCurrentView('onboarding'), 500);
-      return () => clearTimeout(timer);
+      setCurrentView('onboarding');
     }
   }, [hasCompletedOnboarding, setCurrentView]);
+
+  // 挂载时检查日/周边界：跨天后不练习直接看首页，学习目标进度也要显示归零后的值
+  useEffect(() => {
+    useLearningGoalsStore.getState().refreshResets();
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -125,6 +131,11 @@ export default function HomePage() {
     { key: 'report', icon: FileBarChart, title: '家长报告', view: 'parent-dashboard', color: '#0984E3', sub: '查看' },
     { key: 'pet', icon: PawPrint, title: '宠物小屋', view: 'pet', color: '#FD79A8', sub: '成长' },
   ] as const;
+
+  // 渲染守卫（置于全部 hooks 之后）：未完成新手引导时不渲染首页内容
+  if (!hasCompletedOnboarding) {
+    return <div className="min-h-screen bg-[#F7F8FC]" />;
+  }
 
   return (
     <div className="min-h-screen bg-[#F7F8FC]">

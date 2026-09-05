@@ -220,7 +220,8 @@ export default function MathHome() {
   const lastMathMode = useMemo(() => {
     const mathRecords = practiceHistory.filter((r) => r.subject === 'math');
     if (mathRecords.length === 0) return null;
-    return mathRecords[0].mode as MathTab;
+    // 历史记录可能是 free/speed/adventure/daily 或具体模式，统一按 string 处理
+    return mathRecords[0].mode as string;
   }, [practiceHistory]);
 
   // ── Adventure computed values ──
@@ -323,9 +324,9 @@ export default function MathHome() {
   const handleQuickStart = () => {
     playClickSound();
     const mode = lastMathMode || 'free';
-    if (mode === 'free') {
-      startMathSession('free', effectiveOperation, effectiveDifficulty, questionCount);
-      setCurrentView('playing');
+    if (mode === 'daily') {
+      // 上次是每日挑战时直接回到每日挑战页
+      setCurrentView('daily-challenge');
     } else if (mode === 'speed') {
       startMathSession('speed', speedOperation, 'easy', 50);
       setSpeedTimeLimit(speedTimeLimit);
@@ -345,6 +346,10 @@ export default function MathHome() {
         startMathSession('adventure', level.operation, level.difficulty, level.questionCount);
         setCurrentView('playing');
       }
+    } else {
+      // 其余模式（含自由练习与未来新增模式）一律按自由练习兜底
+      startMathSession('free', effectiveOperation, effectiveDifficulty, questionCount);
+      setCurrentView('playing');
     }
   };
 
@@ -514,7 +519,7 @@ export default function MathHome() {
       {/* Rules hint */}
       <div className="bg-rose-50 border border-rose-100 rounded-xl p-3">
         <p className="text-xs text-rose-700 leading-relaxed">
-          ⏱️ 在选定时间内尽量多答题，答对自动跳题，答错不跳但消耗时间
+          ⏱️ 在选定时间内尽量多答题，答对答错都会跳到下一题，金币奖励×1.5！
         </p>
       </div>
 

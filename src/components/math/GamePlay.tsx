@@ -256,17 +256,6 @@ export default function GamePlay() {
 
       const result = advanceToNextOrEnd();
       if (result === 'end') {
-        // Save wrong answers before session is cleared
-        const allQuestions = useGameStore.getState().session?.questions as MathQuestion[] | undefined;
-        const wrongs = allQuestions
-          ? allQuestions.filter((q) => q.isCorrect === false).map((q) => ({
-              expression: q.expression ?? `${q.num1} ${q.displayOp} ${q.num2}`,
-              correctAnswer: q.correctAnswer,
-              userAnswer: q.userAnswer ?? 0,
-            }))
-          : [];
-        try { sessionStorage.setItem('math-wrong-answers', JSON.stringify(wrongs)); } catch { /* ignore */ }
-
         const record = endSession();
 
         // Update adventure stars if applicable

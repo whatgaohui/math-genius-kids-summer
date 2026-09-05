@@ -10,7 +10,7 @@ import { generateQuestions, calculateStars, calculateXP, calculateLevel } from '
 import { generateCurriculumQuestions, type Grade, type Semester } from './math-curriculum';
 import { computeUnlockedAchievements } from './achievements';
 import type { PracticeRecordSummary } from './achievements';
-import { usePetStore, type PracticeReward, getCoinBonusPercent, getCriticalHitChance, getPetTalent } from './pet-store';
+import { usePetStore, type PracticeReward, getCoinBonusPercent, getXPBonusPercent, getCriticalHitChance, getPetTalent } from './pet-store';
 import { useLearningGoalsStore } from './learning-goals';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -111,6 +111,8 @@ interface GameState {
   session: GameSessionState | null;
 
   // Last session result (saved before session is cleared)
+  // 答题回顾快照：endSession 清空 session 前把带作答信息的题目存这里，供结算页展示
+  lastReviewQuestions: MathQuestion[] | ChineseQuestion[] | EnglishQuestion[];
   lastResult: {
     correct: number;
     wrong: number;
@@ -291,6 +293,7 @@ export const useGameStore = create<GameState & GameActions>()(
 
       session: null,
 
+      lastReviewQuestions: [],
       lastResult: null,
 
       dailyChallengeCompletedDates: [],
@@ -417,7 +420,7 @@ export const useGameStore = create<GameState & GameActions>()(
           isDailyChallenge: mode === 'daily',
         };
 
-        set({ session });
+        set({ session, ...(mode === 'adventure' ? {} : { lastGameSource: '' }) });
       },
 
       nextQuestion: () => {
@@ -503,7 +506,10 @@ export const useGameStore = create<GameState & GameActions>()(
         const wrong = session.sessionWrong;
         const total = correct + wrong; // Actual answered count, not pool size
         const stars = calculateStars(correct, total);
-        const xp = calculateXP(correct, total, totalTimeMs, stars, session.sessionMaxCombo);
+        // 经验加成真实生效（宠物等级/天赋，见 pet-store getXPBonusPercent；此前只展示不计算）
+        const petPre = usePetStore.getState();
+        const xpBonusPercent = getXPBonusPercent(petPre.petLevel, petPre.petType);
+        const xp = Math.round(calculateXP(correct, total, totalTimeMs, stars, session.sessionMaxCombo) * (1 + xpBonusPercent / 100));
 
         const record: PracticeRecord = {
           date: getTodayStr(),
@@ -549,8 +555,7 @@ export const useGameStore = create<GameState & GameActions>()(
         }
 
         // Award coins & pet XP
-        const petStore = usePetStore.getState();
-        const reward = petStore.calculatePracticeReward({
+        const reward = petPre.calculatePracticeReward({
           correct,
           total,
           stars,
@@ -561,7 +566,10 @@ export const useGameStore = create<GameState & GameActions>()(
           mode: session.sessionMode,
           floorLevel: session.sessionMode === 'adventure' ? state.adventureLevel : undefined,
         });
-        petStore.awardPracticeReward(reward);
+        petPre.awardPracticeReward(reward);
+
+        // 发奖后重读宠物状态：本局升级时结算页展示新等级（与语文/英语路径一致）
+        const petPost = usePetStore.getState();
 
         // Save result before clearing session (for ResultPage to read)
         const resultData = {
@@ -581,9 +589,9 @@ export const useGameStore = create<GameState & GameActions>()(
           isCriticalHit: reward.isCriticalHit,
           bonusDetails: {
             ...reward.bonuses,
-            petLevel: petStore.petLevel,
-            coinBonusPercent: getCoinBonusPercent(petStore.petLevel, petStore.petType),
-            critChance: getCriticalHitChance(petStore.petLevel, petStore.petType),
+            petLevel: petPost.petLevel,
+            coinBonusPercent: getCoinBonusPercent(petPost.petLevel, petPost.petType),
+            critChance: getCriticalHitChance(petPost.petLevel, petPost.petType),
             talentBonus: reward.talentBonus,
             talentName: reward.talentName,
             talentEmoji: reward.talentEmoji,
@@ -593,6 +601,10 @@ export const useGameStore = create<GameState & GameActions>()(
         set({
           session: null,
           lastResult: resultData,
+          // 结算页答题回顾数据源（session 已清空，回顾从快照读取）
+          lastReviewQuestions: session.questions,
+          // 非闯关会话结束即清理来源标记，避免后续结算误显示"闯关通关"横幅
+          lastGameSource: session.sessionMode === 'adventure' ? state.lastGameSource : '',
           totalStars: newTotalStars,
           totalXP: newTotalXP,
           playerLevel: newPlayerLevel,
@@ -606,7 +618,7 @@ export const useGameStore = create<GameState & GameActions>()(
 
         // Update learning goals progress
         const goalsStore = useLearningGoalsStore.getState();
-        goalsStore.updateGoalProgress(1, total, stars);
+        goalsStore.updateGoalProgress(1, total, stars, session.sessionSubject);
 
         return record;
       },
@@ -627,7 +639,7 @@ export const useGameStore = create<GameState & GameActions>()(
       },
 
       resetGame: () => {
-        set({ session: null });
+        set({ session: null, lastReviewQuestions: [] });
       },
 
       // ── Chinese Session ──
@@ -705,7 +717,10 @@ export const useGameStore = create<GameState & GameActions>()(
         if (total === 0) return null;
 
         const stars = calculateStars(correct, total);
-        const xp = calculateXP(correct, total, timeMs, stars, maxCombo);
+        // 经验加成真实生效（宠物等级/天赋，见 pet-store getXPBonusPercent；此前只展示不计算）
+        const petPre = usePetStore.getState();
+        const xpBonusPercent = getXPBonusPercent(petPre.petLevel, petPre.petType);
+        const xp = Math.round(calculateXP(correct, total, timeMs, stars, maxCombo) * (1 + xpBonusPercent / 100));
 
         const record: PracticeRecord = {
           date: getTodayStr(),
@@ -743,8 +758,7 @@ export const useGameStore = create<GameState & GameActions>()(
         }
 
         // Award coins & pet XP via pet store (pass mode & floorLevel for multiplier)
-        const petStore = usePetStore.getState();
-        const reward = petStore.calculatePracticeReward({
+        const reward = petPre.calculatePracticeReward({
           correct,
           total,
           stars,
@@ -755,7 +769,10 @@ export const useGameStore = create<GameState & GameActions>()(
           mode,
           floorLevel,
         });
-        petStore.awardPracticeReward(reward);
+        petPre.awardPracticeReward(reward);
+
+        // 发奖后重读宠物状态：本局升级时结算页展示新等级
+        const petPost = usePetStore.getState();
 
         // Save lastResult for result page
         const resultData = {
@@ -775,9 +792,9 @@ export const useGameStore = create<GameState & GameActions>()(
           isCriticalHit: reward.isCriticalHit,
           bonusDetails: {
             ...reward.bonuses,
-            petLevel: petStore.petLevel,
-            coinBonusPercent: getCoinBonusPercent(petStore.petLevel, petStore.petType),
-            critChance: getCriticalHitChance(petStore.petLevel, petStore.petType),
+            petLevel: petPost.petLevel,
+            coinBonusPercent: getCoinBonusPercent(petPost.petLevel, petPost.petType),
+            critChance: getCriticalHitChance(petPost.petLevel, petPost.petType),
             talentBonus: reward.talentBonus,
             talentName: reward.talentName,
             talentEmoji: reward.talentEmoji,
@@ -788,6 +805,8 @@ export const useGameStore = create<GameState & GameActions>()(
         const baseUpdate: Partial<GameState> = {
           session: null,
           lastResult: resultData,
+          // 非闯关会话结束即清理来源标记，避免后续结算误显示"闯关通关"横幅
+          lastGameSource: mode === 'adventure' ? state.lastGameSource : '',
           totalStars: newTotalStars,
           totalXP: newTotalXP,
           playerLevel: newPlayerLevel,
@@ -797,7 +816,9 @@ export const useGameStore = create<GameState & GameActions>()(
         };
 
         // Adventure progress tracking for chinese/english
-        if (mode === 'adventure' && floorLevel !== undefined && floorLevel > 0) {
+        // 仅 stars >= 1（实际通过）才推进最高层数：与楼层解锁口径一致，
+        // 否则 0 星失败也会解锁"到达 N 层"成就
+        if (mode === 'adventure' && floorLevel !== undefined && floorLevel > 0 && stars >= 1) {
           if (subject === 'chinese') {
             // Update highest completed level
             if (floorLevel > state.chineseAdventureLevel) {
@@ -831,7 +852,7 @@ export const useGameStore = create<GameState & GameActions>()(
 
         // Update learning goals progress
         const goalsStore = useLearningGoalsStore.getState();
-        goalsStore.updateGoalProgress(1, total, stars);
+        goalsStore.updateGoalProgress(1, total, stars, subject);
 
         return { record, reward };
       },

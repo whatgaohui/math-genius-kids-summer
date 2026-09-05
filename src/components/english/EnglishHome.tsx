@@ -270,7 +270,11 @@ export default function EnglishHome() {
   const handleSpeedStart = () => {
     playClickSound();
     resumeAudioContext();
-    setEnglishPlayConfig({ mode: speedMode, grade: effectiveGrade, count: 50, isSpeed: true, speedTimeLimit: englishSpeedTimeLimit });
+    // 限时模式下若当前选中模式对年级锁定，回退到词图配对（与自由练习一致）
+    const speedConfig = ALL_ENGLISH_MODES.find(m => m.mode === speedMode);
+    const speedLocked = !!speedConfig?.minGrade && effectiveGrade < speedConfig.minGrade;
+    const finalSpeedMode = speedLocked ? 'word-picture' : speedMode;
+    setEnglishPlayConfig({ mode: finalSpeedMode as EnglishMode, grade: effectiveGrade, count: 50, isSpeed: true, speedTimeLimit: englishSpeedTimeLimit, isAdventure: false, adventureFloor: 0 });
     setCurrentView('english-play');
   };
 
@@ -282,6 +286,9 @@ export default function EnglishHome() {
       mode: level.modes[0] as EnglishMode,
       grade: level.grades[0] as EnglishGrade,
       count: level.questionCount,
+      // 必须显式重置限时标记：配置是模块级可变对象，否则闯关会带上上次限时模式的 isSpeed
+      isSpeed: false,
+      speedTimeLimit: 60,
       isAdventure: true,
       adventureFloor: level.id,
     });
@@ -318,18 +325,23 @@ export default function EnglishHome() {
     playClickSound();
     resumeAudioContext();
     const mode = lastEnglishMode || 'free';
-    if (mode === 'free') {
-      const modeConfig = ALL_ENGLISH_MODES.find(m => m.mode === selectedMode);
-      const isLocked = !!modeConfig?.minGrade && effectiveGrade < modeConfig.minGrade;
-      const finalMode = isLocked ? 'word-picture' : selectedMode;
-      setEnglishPlayConfig({ mode: finalMode, grade: effectiveGrade, count: selectedCount, isSpeed: false, isAdventure: false });
-      setCurrentView('english-play');
-    } else if (mode === 'speed') {
-      setEnglishPlayConfig({ mode: speedMode, grade: effectiveGrade, count: 50, isSpeed: true, speedTimeLimit: englishSpeedTimeLimit });
+    // 历史记录里的 mode 可能是具体练习模式（word-picture 等）而非 free/speed/adventure，
+    // 未识别的一律按自由练习兜底，避免按钮点击无反应
+    if (mode === 'speed') {
+      const speedConfig = ALL_ENGLISH_MODES.find(m => m.mode === speedMode);
+      const speedLocked = !!speedConfig?.minGrade && effectiveGrade < speedConfig.minGrade;
+      const finalSpeedMode = speedLocked ? 'word-picture' : speedMode;
+      setEnglishPlayConfig({ mode: finalSpeedMode as EnglishMode, grade: effectiveGrade, count: 50, isSpeed: true, speedTimeLimit: englishSpeedTimeLimit, isAdventure: false, adventureFloor: 0 });
       setCurrentView('english-play');
     } else if (mode === 'adventure') {
       const level = ALL_LEVELS.find((l) => l.id === nextFloor);
       if (level) handleStartLevel(level);
+    } else {
+      const modeConfig = ALL_ENGLISH_MODES.find(m => m.mode === selectedMode);
+      const isLocked = !!modeConfig?.minGrade && effectiveGrade < modeConfig.minGrade;
+      const finalMode = isLocked ? 'word-picture' : selectedMode;
+      setEnglishPlayConfig({ mode: finalMode, grade: effectiveGrade, count: selectedCount, isSpeed: false, speedTimeLimit: 60, isAdventure: false, adventureFloor: 0 });
+      setCurrentView('english-play');
     }
   };
 

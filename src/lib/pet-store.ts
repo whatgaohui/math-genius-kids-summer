@@ -503,10 +503,11 @@ export function getCoinBonusPercent(petLevel: number, petType?: string | null): 
   else if (petLevel >= 5) base = 15;
 
   // Add talent bonus
+  // 注意：allBonusExtra（熊猫"全能学霸"）不并入这里——金币侧它在
+  // calculatePracticeReward 里作为独立的"全能学霸加成"行计算，并入会双算
   const talent = getPetTalent(petType ?? null);
   if (talent) {
     base += talent.coinBonusExtra;
-    base += talent.allBonusExtra;
   }
   return base;
 }
@@ -518,6 +519,7 @@ export function getXPBonusPercent(petLevel: number, petType?: string | null): nu
   else if (petLevel >= 3) base = 10;
 
   // Add talent bonus
+  // XP 侧 allBonusExtra 只在这里生效一次（金币侧有独立加成行，XP 没有）
   const talent = getPetTalent(petType ?? null);
   if (talent) {
     base += talent.xpBonusExtra;

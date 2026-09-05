@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -313,6 +313,14 @@ export default function PetPage() {
   const adoptPet = usePetStore((s) => s.adoptPet);
   const renamePet = usePetStore((s) => s.renamePet);
   const feedPet = usePetStore((s) => s.feedPet);
+
+  // 喂食/玩耍也能升级：宠物等级变化时刷新成就（"宠物伙伴 Lv5"等），
+  // 否则要等下一次任意练习结束才补解锁
+  useEffect(() => {
+    if (petLevel > 1) {
+      useGameStore.getState().refreshAchievements();
+    }
+  }, [petLevel]);
   const playWithPet = usePetStore((s) => s.playWithPet);
   const buyFurniture = usePetStore((s) => s.buyFurniture);
   const equipFurniture = usePetStore((s) => s.equipFurniture);

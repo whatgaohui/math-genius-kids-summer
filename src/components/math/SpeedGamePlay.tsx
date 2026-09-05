@@ -15,6 +15,7 @@ import {
   Flame,
 } from 'lucide-react';
 import { useGameStore } from '@/lib/game-store';
+import { addError, generateId } from '@/lib/error-book';
 import { playCorrectSound, playWrongSound, playComboSound, resumeAudioContext } from '@/lib/sound';
 import { generateQuestions } from '@/lib/math-utils';
 import { generateCurriculumQuestions, type Grade, type Semester } from '@/lib/math-curriculum';
@@ -91,17 +92,6 @@ export default function SpeedGamePlay() {
 
     // Small delay before transitioning
     const timer = setTimeout(() => {
-      // Save wrong answers before session is cleared
-      const allQuestions = useGameStore.getState().session?.questions as MathQuestion[] | undefined;
-      const wrongs = allQuestions
-        ? allQuestions.filter((q) => q.isCorrect === false).map((q) => ({
-            expression: q.expression ?? `${q.num1} ${q.displayOp} ${q.num2}`,
-            correctAnswer: q.correctAnswer,
-            userAnswer: q.userAnswer ?? 0,
-          }))
-        : [];
-      try { sessionStorage.setItem('math-wrong-answers', JSON.stringify(wrongs)); } catch { /* ignore */ }
-
       endSession();
       setCurrentView('result');
     }, 100);
@@ -174,6 +164,28 @@ export default function SpeedGamePlay() {
         : Number(answer) === Number(currentQuestion.correctAnswer);
 
     answerQuestion(currentQuestion.id, answer, questionTime);
+
+    // 答错同样写入错题本（与自由练习/语文/英语/每日挑战保持一致）
+    if (!isCorrect) {
+      try {
+        addError({
+          id: generateId(),
+          subject: 'math',
+          expression: currentQuestion.expression || `${currentQuestion.num1} ${currentQuestion.displayOp} ${currentQuestion.num2}`,
+          correctAnswer: typeof currentQuestion.correctAnswer === 'boolean'
+            ? (currentQuestion.correctAnswer ? '大于' : '不大于')
+            : currentQuestion.correctAnswer,
+          userAnswer: typeof answer === 'boolean' ? (answer ? '大于' : '不大于') : answer,
+          operation: currentQuestion.operation,
+          difficulty: session.sessionDifficulty,
+          mode: session.sessionMode,
+          timestamp: Date.now(),
+          date: new Date().toISOString(),
+          reviewCount: 0,
+          mastered: false,
+        });
+      } catch { /* ignore */ }
+    }
 
     if (soundEnabled) {
       if (isCorrect) {

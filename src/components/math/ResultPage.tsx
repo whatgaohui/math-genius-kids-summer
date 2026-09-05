@@ -66,6 +66,7 @@ function CoinFlyAnimation({ count, onComplete }: { count: number; onComplete?: (
 export default function ResultPage() {
   const session = useGameStore((s) => s.session)
   const lastResult = useGameStore((s) => s.lastResult)
+  const lastReviewQuestions = useGameStore((s) => s.lastReviewQuestions)
   const lastGameSource = useGameStore((s) => s.lastGameSource)
   const lastLevelName = useGameStore((s) => s.lastLevelName)
   const lastLevelEmoji = useGameStore((s) => s.lastLevelEmoji)
@@ -109,7 +110,8 @@ export default function ResultPage() {
   const resultStars = lastResult?.stars ?? session?.sessionStars ?? 0
   const resultMaxCombo = lastResult?.maxCombo ?? session?.sessionMaxCombo ?? 0
   const resultXP = lastResult?.xp ?? session?.sessionXP ?? 0
-  const questions = session?.questions ?? []
+  // 结算时 session 已被 endSession 清空，回顾从快照读取
+  const questions = session?.questions ?? lastReviewQuestions ?? []
 
   const accuracy = resultTotal > 0 ? Math.min(resultCorrect / resultTotal, 1) : 0
   const encouragement = getEncouragement(Math.round(accuracy * 100))
@@ -219,23 +221,21 @@ export default function ResultPage() {
           : q.expression
             ? `${q.expression} = ?`
             : `${q.num1} ${q.displayOp} ${q.num2} = ?`,
+      // 比较题的答案存的是 boolean（与 GamePlay 的"> 大于 / ≤ 不大于"按钮对应），
+      // 不能用 1/-1/0 映射（那是旧版 > < = 文案，会把 boolean 显示成 true/false）
       userAnswer:
         q.operation === 'compare'
-          ? q.userAnswer === 1
-            ? '>'
-            : q.userAnswer === -1
-              ? '<'
-              : q.userAnswer === 0
-                ? '='
-                : String(q.userAnswer ?? '')
+          ? typeof q.userAnswer === 'boolean'
+            ? q.userAnswer
+              ? '大于'
+              : '不大于'
+            : String(q.userAnswer ?? '')
           : String(q.userAnswer ?? ''),
       correctAnswer:
         q.operation === 'compare'
-          ? q.correctAnswer === 1
-            ? '>'
-            : q.correctAnswer === -1
-              ? '<'
-              : '='
+          ? q.correctAnswer
+            ? '大于'
+            : '不大于'
           : String(q.correctAnswer),
       isCorrect: q.isCorrect ?? false,
       timeMs: q.timeMs,

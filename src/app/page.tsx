@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { motion } from 'framer-motion'
 import { useGameStore } from '@/lib/game-store'
 import { resumeAudioForMobile } from '@/lib/tts'
+import { clearAllPersistedData } from '@/lib/persist-keys'
 
 // Lazy load all page components for performance
 const HomePage = dynamic(() => import('@/components/math/HomePage'), { ssr: false })
@@ -93,16 +94,8 @@ class ErrorBoundary extends Component<
 
   handleReset = () => {
     // Clear potentially corrupted localStorage data
-    try {
-      localStorage.removeItem('math-genius-game-store')
-      localStorage.removeItem('math-genius-pet-store')
-      localStorage.removeItem('math-genius-onboarding')
-      localStorage.removeItem('math-genius-learning-goals')
-      localStorage.removeItem('error-book')
-      localStorage.removeItem('summer-camp-store')
-    } catch {
-      // ignore
-    }
+    // 与设置页"清除数据"共用同一份键清单（见 src/lib/persist-keys.ts）
+    clearAllPersistedData()
     window.location.reload()
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Plus, Trash2, Target, CheckCircle2, Sparkles } from 'lucide-react';
 import { useLearningGoalsStore, type LearningGoal } from '@/lib/learning-goals';
@@ -92,6 +92,11 @@ export default function LearningGoalsPage() {
   const weekCompletedQuestions = useLearningGoalsStore((s) => s.weekCompletedQuestions);
   const weekEarnedStars = useLearningGoalsStore((s) => s.weekEarnedStars);
   const setCurrentView = useGameStore((s) => s.setCurrentView);
+
+  // 挂载时检查日/周边界：跨天后不练习直接进本页，也要显示归零后的进度
+  useEffect(() => {
+    useLearningGoalsStore.getState().refreshResets();
+  }, []);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newGoalType, setNewGoalType] = useState<'daily' | 'weekly'>('daily');

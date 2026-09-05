@@ -199,7 +199,8 @@ export default function ChinesePlay() {
             correctOption: typeof correctOption === 'string' ? correctOption : String(correctOption ?? ''),
             userOption: typeof userOption === 'string' ? userOption : String(userOption ?? ''),
             operation: config.mode,
-            mode: config.isAdventure ? 'adventure' : 'free',
+            // 错题记录的 mode 与 completeSubjectSession 同口径：限时记 'speed'
+            mode: isSpeedMode ? 'speed' : (config.isAdventure ? 'adventure' : 'free'),
             timestamp: Date.now(),
             date: new Date().toISOString(),
             reviewCount: 0,

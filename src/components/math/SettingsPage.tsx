@@ -30,6 +30,7 @@ import { getGradeLabel, GRADE_LABELS, GRADE_EMOJIS, type Grade, type Semester } 
 import { usePetStore, PET_CONFIGS, getPetEmoji } from '@/lib/pet-store';
 import { getXPForNextLevel } from '@/lib/math-utils';
 import { getCurrentRank } from '@/lib/rank-system';
+import { clearAllPersistedData } from '@/lib/persist-keys';
 import BottomNav from './BottomNav';
 
 // ─── Animations ───
@@ -293,8 +294,8 @@ export default function SettingsPage() {
 
 
   const handleClearData = () => {
-    localStorage.removeItem('math-genius-game-store');
-    localStorage.removeItem('math-genius-pet-store');
+    // 清除全部持久化数据（与 ErrorBoundary 重置共用同一份键清单）
+    clearAllPersistedData();
     window.location.reload();
   };
 

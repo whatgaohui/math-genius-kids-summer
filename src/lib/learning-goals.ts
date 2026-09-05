@@ -13,6 +13,33 @@ export interface LearningGoal {
   isActive: boolean;
 }
 
+// 单科目的进度桶；'all' 口径沿用顶层全局计数器
+interface SubjectBucket {
+  sessions: number;
+  questions: number;
+  stars: number;
+}
+
+type SubjectKey = 'math' | 'chinese' | 'english';
+// 旧持久化数据没有分桶字段，允许缺键
+type SubjectBuckets = Partial<Record<SubjectKey, SubjectBucket>>;
+
+const EMPTY_BUCKET: SubjectBucket = { sessions: 0, questions: 0, stars: 0 };
+
+function getTodayStr(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+// 计算某日期所在周的周一（用于周进度重置判断）
+function getMondayOf(dateStr: string): Date {
+  const d = new Date(dateStr);
+  const dayOfWeek = d.getDay();
+  const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - daysSinceMonday);
+  return monday;
+}
+
 interface LearningGoalsState {
   goals: LearningGoal[];
   todayCompletedSessions: number;
@@ -21,14 +48,20 @@ interface LearningGoalsState {
   weekCompletedSessions: number;
   weekCompletedQuestions: number;
   weekEarnedStars: number;
+  // 按科目分桶的进度（旧数据没有这两个字段时按空桶处理，'all' 口径不受影响）
+  todayBySubject: SubjectBuckets;
+  weekBySubject: SubjectBuckets;
   lastResetDate: string;
   lastWeekResetDate: string;
-  
+
   // Actions
   addGoal: (goal: Omit<LearningGoal, 'id'>) => void;
   removeGoal: (id: string) => void;
   toggleGoal: (id: string) => void;
-  updateGoalProgress: (sessions: number, questions: number, stars: number) => void;
+  // subject 传入时同时累计到对应科目桶；不传只累计全局
+  updateGoalProgress: (sessions: number, questions: number, stars: number, subject?: SubjectKey) => void;
+  // 检查日/周边界并重置过期进度；页面挂载时调用，避免跨天后显示昨天的数字
+  refreshResets: () => void;
   resetDailyProgress: () => void;
   getGoalProgress: (goal: LearningGoal) => { current: number; target: number; percent: number };
 }
@@ -63,8 +96,10 @@ export const useLearningGoalsStore = create<LearningGoalsState>()(
       weekCompletedSessions: 0,
       weekCompletedQuestions: 0,
       weekEarnedStars: 0,
-      lastResetDate: new Date().toISOString().split('T')[0],
-      lastWeekResetDate: new Date().toISOString().split('T')[0],
+      todayBySubject: {},
+      weekBySubject: {},
+      lastResetDate: getTodayStr(),
+      lastWeekResetDate: getTodayStr(),
 
       addGoal: (goal) => set((s) => ({
         goals: [...s.goals, { ...goal, id: `goal-${Date.now()}` }],
@@ -78,51 +113,63 @@ export const useLearningGoalsStore = create<LearningGoalsState>()(
         goals: s.goals.map(g => g.id === id ? { ...g, isActive: !g.isActive } : g),
       })),
 
-      updateGoalProgress: (sessions, questions, stars) => {
-        const today = new Date().toISOString().split('T')[0];
+      refreshResets: () => {
+        const today = getTodayStr();
         const state = get();
-        
-        // Check if we need to reset daily progress
-        let dailySessions = state.todayCompletedSessions;
-        let dailyQuestions = state.todayCompletedQuestions;
-        let dailyStars = state.todayEarnedStars;
-        
-        if (state.lastResetDate !== today) {
-          dailySessions = 0;
-          dailyQuestions = 0;
-          dailyStars = 0;
-        }
 
-        // Check if we need to reset weekly progress
-        let weekSessions = state.weekCompletedSessions;
-        let weekQuestions = state.weekCompletedQuestions;
-        let weekStars = state.weekEarnedStars;
+        const dayChanged = state.lastResetDate !== today;
+        const weekChanged = getMondayOf(today).getTime() > getMondayOf(state.lastWeekResetDate).getTime();
+        if (!dayChanged && !weekChanged) return;
 
-        const lastWeekReset = new Date(state.lastWeekResetDate);
-        const todayDate = new Date(today);
-        const dayOfWeek = todayDate.getDay();
-        const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-        const thisMonday = new Date(todayDate);
-        thisMonday.setDate(todayDate.getDate() - daysSinceMonday);
-        const lastResetMonday = new Date(lastWeekReset);
-        const lastResetDaysSinceMonday = lastWeekReset.getDay() === 0 ? 6 : lastWeekReset.getDay() - 1;
-        lastResetMonday.setDate(lastWeekReset.getDate() - lastResetDaysSinceMonday);
-
-        if (thisMonday.getTime() > lastResetMonday.getTime()) {
-          weekSessions = 0;
-          weekQuestions = 0;
-          weekStars = 0;
-        }
-        
         set({
-          todayCompletedSessions: dailySessions + sessions,
-          todayCompletedQuestions: dailyQuestions + questions,
-          todayEarnedStars: dailyStars + stars,
-          weekCompletedSessions: weekSessions + sessions,
-          weekCompletedQuestions: weekQuestions + questions,
-          weekEarnedStars: weekStars + stars,
+          ...(dayChanged ? {
+            todayCompletedSessions: 0,
+            todayCompletedQuestions: 0,
+            todayEarnedStars: 0,
+            todayBySubject: {},
+          } : {}),
+          ...(weekChanged ? {
+            weekCompletedSessions: 0,
+            weekCompletedQuestions: 0,
+            weekEarnedStars: 0,
+            weekBySubject: {},
+          } : {}),
           lastResetDate: today,
-          lastWeekResetDate: thisMonday.getTime() > lastResetMonday.getTime() ? today : state.lastWeekResetDate,
+          lastWeekResetDate: weekChanged ? today : state.lastWeekResetDate,
+        });
+      },
+
+      updateGoalProgress: (sessions, questions, stars, subject) => {
+        // 先处理日/周边界重置，再累计
+        get().refreshResets();
+        const state = get();
+
+        const todayBySubject = { ...(state.todayBySubject ?? {}) };
+        const weekBySubject = { ...(state.weekBySubject ?? {}) };
+        if (subject) {
+          const t = todayBySubject[subject] ?? EMPTY_BUCKET;
+          todayBySubject[subject] = {
+            sessions: t.sessions + sessions,
+            questions: t.questions + questions,
+            stars: t.stars + stars,
+          };
+          const w = weekBySubject[subject] ?? EMPTY_BUCKET;
+          weekBySubject[subject] = {
+            sessions: w.sessions + sessions,
+            questions: w.questions + questions,
+            stars: w.stars + stars,
+          };
+        }
+
+        set({
+          todayCompletedSessions: state.todayCompletedSessions + sessions,
+          todayCompletedQuestions: state.todayCompletedQuestions + questions,
+          todayEarnedStars: state.todayEarnedStars + stars,
+          weekCompletedSessions: state.weekCompletedSessions + sessions,
+          weekCompletedQuestions: state.weekCompletedQuestions + questions,
+          weekEarnedStars: state.weekEarnedStars + stars,
+          todayBySubject,
+          weekBySubject,
         });
       },
 
@@ -130,7 +177,8 @@ export const useLearningGoalsStore = create<LearningGoalsState>()(
         todayCompletedSessions: 0,
         todayCompletedQuestions: 0,
         todayEarnedStars: 0,
-        lastResetDate: new Date().toISOString().split('T')[0],
+        todayBySubject: {},
+        lastResetDate: getTodayStr(),
       }),
 
       getGoalProgress: (goal) => {
@@ -138,26 +186,33 @@ export const useLearningGoalsStore = create<LearningGoalsState>()(
         let current = 0;
         let target = 0;
 
+        // 指定科目的目标从对应桶取数；'all' 用全局计数
+        const bucket = goal.subject !== 'all'
+          ? (goal.type === 'daily' ? state.todayBySubject : state.weekBySubject)?.[goal.subject] ?? EMPTY_BUCKET
+          : null;
+
+        const pick = (bucketValue: number, globalValue: number) => (bucket ? bucketValue : globalValue);
+
         if (goal.type === 'daily') {
           if (goal.targetSessions > 0) {
-            current = state.todayCompletedSessions;
+            current = pick(bucket?.sessions ?? 0, state.todayCompletedSessions);
             target = goal.targetSessions;
           } else if (goal.targetQuestions > 0) {
-            current = state.todayCompletedQuestions;
+            current = pick(bucket?.questions ?? 0, state.todayCompletedQuestions);
             target = goal.targetQuestions;
           } else if (goal.targetStars > 0) {
-            current = state.todayEarnedStars;
+            current = pick(bucket?.stars ?? 0, state.todayEarnedStars);
             target = goal.targetStars;
           }
         } else {
           if (goal.targetSessions > 0) {
-            current = state.weekCompletedSessions;
+            current = pick(bucket?.sessions ?? 0, state.weekCompletedSessions);
             target = goal.targetSessions;
           } else if (goal.targetQuestions > 0) {
-            current = state.weekCompletedQuestions;
+            current = pick(bucket?.questions ?? 0, state.weekCompletedQuestions);
             target = goal.targetQuestions;
           } else if (goal.targetStars > 0) {
-            current = state.weekEarnedStars;
+            current = pick(bucket?.stars ?? 0, state.weekEarnedStars);
             target = goal.targetStars;
           }
         }
@@ -179,6 +234,8 @@ export const useLearningGoalsStore = create<LearningGoalsState>()(
         weekCompletedSessions: state.weekCompletedSessions,
         weekCompletedQuestions: state.weekCompletedQuestions,
         weekEarnedStars: state.weekEarnedStars,
+        todayBySubject: state.todayBySubject,
+        weekBySubject: state.weekBySubject,
         lastResetDate: state.lastResetDate,
         lastWeekResetDate: state.lastWeekResetDate,
       }),
