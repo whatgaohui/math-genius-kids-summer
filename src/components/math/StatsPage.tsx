@@ -73,6 +73,10 @@ const CHINESE_MODE_NAMES: Record<string, string> = {
   'antonym': '反义词大挑战',
   'poetry-fill': '古诗填空',
   'synonym': '近义词连连看',
+  // 语文/英语的限时、闯关会话 mode 记的是这两个通用值
+  'speed': '限时挑战',
+  'adventure': '闯关模式',
+  'free': '自由练习',
 };
 
 // Mode name mapping for English modes
@@ -81,6 +85,9 @@ const ENGLISH_MODE_NAMES: Record<string, string> = {
   'picture-word': '看词选图',
   'listening': '听力挑战',
   'spelling': '拼写大师',
+  'speed': '限时挑战',
+  'adventure': '闯关模式',
+  'free': '自由练习',
 };
 
 function getModeDisplayName(record: PracticeRecord): string {
@@ -160,12 +167,16 @@ function LearningCalendar({ records }: { records: PracticeRecord[] }) {
   const streakCount = useMemo(() => {
     const today = new Date();
     let count = 0;
+    // 今天还没练习时从昨天起算：连续天数不应因为"今天还没练"而归零显示
+    // （与页面上"连续练习"卡片用 game-store streak 的口径保持一致）
     for (let i = 0; i < 365; i++) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
       if (recordsByDate[dateStr] && recordsByDate[dateStr] > 0) {
         count++;
+      } else if (i === 0) {
+        continue; // 今天无记录不算中断，继续从昨天回溯
       } else {
         break;
       }

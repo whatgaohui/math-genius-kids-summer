@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -294,6 +295,7 @@ function TierBadge({ tier }: { tier: number }) {
 }
 
 export default function PetPage() {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [editNameOpen, setEditNameOpen] = useState(false);
   const [tempName, setTempName] = useState('');
@@ -363,6 +365,9 @@ export default function PetPage() {
   };
 
   const handleAdopt = (petId: string) => {
+    // 点击当前宠物不做任何事（宠物进度 map 只记录被切换离开过的宠物，
+    // 当前宠物无记录，直接走领养流程会误弹取名对话框）
+    if (petId === petType) return;
     const config = PET_CONFIGS.find((p) => p.id === petId);
     if (config) {
       const isAlreadyAdopted = !!petProgressMap[petId];
@@ -624,10 +629,10 @@ export default function PetPage() {
                     <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1.5">
                       <span>经验值</span>
                       <span>
-                        {petProgress.current} / {petProgress.needed}
+                        {petProgress.needed === 0 ? '已满级 🏆' : `${petProgress.current} / ${petProgress.needed}`}
                       </span>
                     </div>
-                    <Progress value={petProgress.progress * 100} className="h-2.5" />
+                    <Progress value={petProgress.needed === 0 ? 100 : petProgress.progress * 100} className="h-2.5" />
                   </div>
 
                   {/* Mood Bar - Visual Gradient */}
@@ -679,7 +684,14 @@ export default function PetPage() {
               {(() => {
                 const next = getNextUnlock(petLevel);
                 if (!next) return null;
-                const xpNeeded = petProgress.needed - petProgress.current;
+                // 累计从当前等级到解锁等级所需的全部 XP（跨级时逐级累加 level*40+20，
+                // 与 pet-store 的升级公式一致；旧逻辑只算到下一级，低估了真实缺口）
+                let xpNeeded = 0;
+                for (let lv = petLevel; lv < next.level; lv++) {
+                  xpNeeded += lv * 40 + 20;
+                }
+                xpNeeded -= petProgress.current;
+                if (xpNeeded < 0) xpNeeded = 0;
                 return (
                   <Card className="border-0 py-0 overflow-hidden">
                     <CardContent className="bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 p-5 border border-amber-100">
@@ -709,7 +721,12 @@ export default function PetPage() {
                 <Card className="border-0 py-0 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-md">
                   <CardContent
                     className="bg-white p-5 dark:bg-gray-800/50"
-                    onClick={feedPet}
+                    onClick={() => {
+                      // 金币不足时明确提示（此前静默无反应）
+                      if (!feedPet()) {
+                        toast({ title: '金币不足 🪙', description: '完成练习赚取金币后再来喂食吧~' });
+                      }
+                    }}
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50 dark:bg-green-900/30">
@@ -730,7 +747,11 @@ export default function PetPage() {
                 <Card className="border-0 py-0 cursor-pointer transition-all hover:scale-[1.02] shadow-sm hover:shadow-md">
                   <CardContent
                     className="bg-white p-5 dark:bg-gray-800/50"
-                    onClick={playWithPet}
+                    onClick={() => {
+                      if (!playWithPet()) {
+                        toast({ title: '金币不足 🪙', description: '完成练习赚取金币后再来玩耍吧~' });
+                      }
+                    }}
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 dark:bg-violet-900/30">

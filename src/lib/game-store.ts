@@ -876,7 +876,13 @@ export const useGameStore = create<GameState & GameActions>()(
           unlockedAchievements: state.unlockedAchievements,
           petLevel: usePetStore.getState().petLevel,
           maxCombo: sessionStats?.maxCombo ?? 0,
-          adventureMaxFloor: state.adventureLevel,
+          // 数学"到达第 N 层"成就按通关口径计算（stars>=1 的最高层）：
+          // adventureLevel 是"最高到达层"（进入即推进），语文/英语都只在通关后推进，
+          // 三科统一用通关层，避免 0 星失败也解锁"探险家"类成就
+          adventureMaxFloor: Object.entries(state.adventureStars).reduce(
+            (max, [floor, stars]) => (stars >= 1 ? Math.max(max, Number(floor)) : max),
+            0
+          ),
           chineseAdventureMaxFloor: state.chineseAdventureLevel,
           englishAdventureMaxFloor: state.englishAdventureLevel,
         });

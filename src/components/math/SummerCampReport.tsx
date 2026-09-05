@@ -344,7 +344,7 @@ export default function SummerCampReport() {
                   {camp.diagnosticPost ? `${camp.diagnosticPost.accuracy}%` : '—'}
                 </p>
                 <p className="text-[9px] font-medium text-[#10B981]">
-                  {camp.diagnosticPost ? `+${Math.max(0, camp.diagnosticPost.accuracy - camp.diagnosticPre.accuracy)}% 提升` : '完成60天后测'}
+                  {camp.diagnosticPost ? `+${Math.max(0, camp.diagnosticPost.accuracy - camp.diagnosticPre.accuracy)}% 提升` : '完成40天解锁后测'}
                 </p>
               </div>
             </div>

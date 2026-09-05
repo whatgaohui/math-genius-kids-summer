@@ -165,8 +165,8 @@ interface PetState {
 interface PetActions {
   adoptPet: (petId: string) => void;
   renamePet: (name: string) => void;
-  feedPet: () => void;
-  playWithPet: () => void;
+  feedPet: () => boolean;
+  playWithPet: () => boolean;
   addCoins: (amount: number) => void;
   spendCoins: (amount: number) => boolean;
   buyFurniture: (itemId: string) => boolean;
@@ -748,9 +748,9 @@ export const usePetStore = create<PetState & PetActions>()(
         set({ petName: name });
       },
 
-      feedPet: () => {
+      feedPet: (): boolean => {
         const state = get();
-        if (state.coins < 5) return;
+        if (state.coins < 5) return false;
         const newXP = state.petXP + 10;
         const newMood = Math.min(100, state.petMood + 10);
         set({
@@ -759,11 +759,12 @@ export const usePetStore = create<PetState & PetActions>()(
           petLevel: getPetLevel(newXP),
           petMood: newMood,
         });
+        return true;
       },
 
-      playWithPet: () => {
+      playWithPet: (): boolean => {
         const state = get();
-        if (state.coins < 3) return;
+        if (state.coins < 3) return false;
         const newXP = state.petXP + 5;
         const newMood = Math.min(100, state.petMood + 15);
         set({
@@ -772,6 +773,7 @@ export const usePetStore = create<PetState & PetActions>()(
           petLevel: getPetLevel(newXP),
           petMood: newMood,
         });
+        return true;
       },
 
       addCoins: (amount: number) => {

@@ -216,7 +216,7 @@ function GettingStartedTab() {
             </div>
             <div>
               <p className="text-xs font-bold text-orange-800">两星 · 不错！</p>
-              <p className="text-[11px] text-orange-600">正确率 ≥ 70%</p>
+              <p className="text-[11px] text-orange-600">正确率 ≥ 75%</p>
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-2.5">
@@ -227,7 +227,7 @@ function GettingStartedTab() {
             </div>
             <div>
               <p className="text-xs font-bold text-gray-700">一星 · 加油！</p>
-              <p className="text-[11px] text-gray-500">正确率 ≥ 50%</p>
+              <p className="text-[11px] text-gray-500">正确率 ≥ 60%</p>
             </div>
           </div>
         </div>
@@ -1050,16 +1050,16 @@ function CoinSystemTab() {
           </div>
 
           <h4 className="text-xs font-bold text-gray-700 flex items-center gap-1">
-            <span className="text-sm">🛋️</span> 家具加成
+            <span className="text-sm">🛋️</span> 家具与温馨度
           </h4>
           <div className="rounded-lg bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 p-3">
             <p className="text-[11px] text-rose-800 leading-relaxed mb-2">
-              🛋️ 购买和装备家具后，家具的加成效果会生效，提升金币获取！
+              🛋️ 购买和装备家具可以提升房间温馨度，把宠物小屋布置得更舒适！
             </p>
             <div className="space-y-1">
-              <p className="text-[11px] text-rose-600">• 优质(tier2)家具 → 金币/经验 <b>+5%</b></p>
-              <p className="text-[11px] text-rose-600">• 精良(tier3)家具 → 金币/经验 <b>+10%</b></p>
-              <p className="text-[11px] text-rose-600">• 传说(tier4)家具 → 全属性 <b>+5~8%</b></p>
+              <p className="text-[11px] text-rose-600">• 每件家具的「舒适+N」直接累加到温馨度</p>
+              <p className="text-[11px] text-rose-600">• 七个位置都装备家具，额外 <b>+10</b> 温馨度</p>
+              <p className="text-[11px] text-rose-600">• 温馨度越高，房间等级越高，宠物住得越开心</p>
             </div>
           </div>
         </div>
@@ -1068,12 +1068,12 @@ function CoinSystemTab() {
       {/* Formula */}
       <SectionTitle emoji="📐" title="金币计算公式" subtitle="看懂每一枚金币的来源" />
       <FormulaBox
-        label="总金币 = (基础 + 星星 + 连击 + 满分 + 速度 + 连续天数) × (1 + 宠物加成% + 家具加成%) × 模式倍率 × 暴击倍率"
+        label="总金币 = (基础 + 星星 + 连击 + 满分 + 速度 + 连续天数) × (1 + 宠物加成%) × 模式倍率 + 天赋加成 + 暴击额外"
         formula="小计 = 基础金币(正确×2) + 星星(×5) + 连击(3连+5, 5连+10, 10连+25)
 + 满分(全对+20) + 速度(<30秒+10) + 连续天数(天×3, 上限30)
 宠物加成 = 小计 × 加成百分比
 暴击 = (小计 + 宠物加成) × 暴击倍率(1或2)"
-        result="最终金币 = 小计 + 宠物加成 + 天赋加成 + 家具加成 + 暴击额外"
+        result="最终金币 = 小计 + 宠物加成 + 天赋加成 + 模式加成 + 暴击额外"
       />
 
       {/* Celebration */}
@@ -1103,7 +1103,7 @@ function CoinSystemTab() {
           {[
             { emoji: '🍖', name: '喂食宠物', cost: '5金币/次', desc: '提升宠物心情+10，获得10点宠物经验' },
             { emoji: '🎾', name: '和宠物玩', cost: '3金币/次', desc: '提升宠物心情+15，获得5点宠物经验' },
-            { emoji: '🛋️', name: '买家具', cost: '25~2000金币', desc: '7类35件家具，装饰房间还能获得加成！' },
+            { emoji: '🛋️', name: '买家具', cost: '25~2000金币', desc: '7类35件家具，装扮宠物房间，提升温馨度！' },
           ].map((item) => (
             <div key={item.name} className="flex items-center gap-2.5 rounded-lg bg-gray-50 p-2">
               <span className="text-lg">{item.emoji}</span>
@@ -1302,10 +1302,10 @@ function PetSystemTab() {
             <div key={t.tier} className="flex items-center gap-2 rounded-lg bg-gray-50 p-2">
               <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${t.bg} ${t.color}`}>{t.name}</span>
               <span className="text-[11px] text-gray-600">
-                {t.tier === 1 && '舒适+3~5，无特殊加成'}
-                {t.tier === 2 && '舒适+8，类别加成(+5%金币/XP, +3%暴击, +10%连击)'}
-                {t.tier === 3 && '舒适+14，更强类别加成(+10%金币/XP, +5%暴击, +20%连击)'}
-                {t.tier === 4 && '舒适+22，全属性+5~8%'}
+                {t.tier === 1 && '舒适+3~5，布置房间的基础选择'}
+                {t.tier === 2 && '舒适+8，更精致的装扮'}
+                {t.tier === 3 && '舒适+14，豪华装扮'}
+                {t.tier === 4 && '舒适+22，顶级装扮，温馨度最高'}
               </span>
               <span className="text-[10px] text-gray-400 shrink-0">{t.levelRange}</span>
             </div>
@@ -1489,7 +1489,7 @@ function SkillLevelTab() {
             </tbody>
           </table>
         </div>
-        <p className="text-[10px] text-gray-400 mt-2 text-center">* 以上为基础加成，宠物天赋和家具可提供额外加成</p>
+        <p className="text-[10px] text-gray-400 mt-2 text-center">* 以上为基础加成，宠物天赋可提供额外加成</p>
       </GuideCard>
     </motion.div>
   );
@@ -1734,8 +1734,8 @@ function TipsTab() {
               color: 'from-pink-50 to-rose-50 border-pink-100',
             },
             {
-              emoji: '🛋️', title: '家具品质影响加成',
-              desc: '优质(绿)家具有金币/经验加成，精良(紫)家具加成更强，传说(金)家具全属性加成！买家具不仅好看，还能提升收益~',
+              emoji: '🛋️', title: '家具品质影响温馨度',
+              desc: '品质越高的家具舒适值越高（普通+3~5 → 传说+22），房间温馨度也越高！买家具把小屋装扮得越来越豪华~',
               color: 'from-amber-50 to-yellow-50 border-amber-100',
             },
             {

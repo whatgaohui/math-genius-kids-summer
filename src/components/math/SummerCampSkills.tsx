@@ -153,6 +153,8 @@ function PracticePlayer({ skill, onDone }: { skill: SkillContent; onDone: (corre
   const current = questions[index];
 
   const handleAnswer = useCallback(() => {
+    // 反馈展示期间的重复提交直接忽略（防止最后一题双击导致 onDone 双计）
+    if (feedback) return;
     const answerNum = parseInt(input, 10);
     if (isNaN(answerNum)) return;
     const isCorrect = answerNum === Number(current.correctAnswer);
@@ -161,6 +163,7 @@ function PracticePlayer({ skill, onDone }: { skill: SkillContent; onDone: (corre
     setFeedback(isCorrect ? 'correct' : 'wrong');
     if (isCorrect) playCorrectSound(); else playWrongSound();
 
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
     feedbackTimer.current = setTimeout(() => {
       setFeedback(null);
       setInput('');
@@ -172,7 +175,7 @@ function PracticePlayer({ skill, onDone }: { skill: SkillContent; onDone: (corre
         setCorrect(newCorrect);
       }
     }, isCorrect ? 500 : 1100);
-  }, [input, current, correct, index, questions.length, onDone]);
+  }, [input, feedback, current, correct, index, questions.length, onDone]);
 
   const pressKey = (k: string) => {
     playClickSound();

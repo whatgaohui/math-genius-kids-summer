@@ -59,8 +59,13 @@ function getDailyChallengeConfig(): {
   description: string;
 } {
   const seed = getDailySeed();
-  const operations = ['add', 'subtract', 'multiply', 'mix'];
-  const difficulties = ['easy', 'medium', 'hard'];
+  // 低年级（1-2 年级）还没学乘除法，题型收敛为加减（与数学首页锁定口径一致）
+  const mathGrade = useGameStore.getState().selectedMathGrade;
+  const gradeAwareOps = mathGrade > 0 && mathGrade <= 2
+    ? ['add', 'subtract', 'mix']
+    : ['add', 'subtract', 'multiply', 'mix'];
+  const operations = gradeAwareOps;
+  const difficulties = mathGrade === 1 ? ['easy', 'easy', 'medium'] : ['easy', 'medium', 'hard'];
   const opIndex = seed % operations.length;
   const diffIndex = seed % difficulties.length;
 
@@ -77,13 +82,17 @@ function getDailyChallengeConfig(): {
     hard: '困难',
   };
 
+  const op = operations[opIndex];
+  const diff = difficulties[diffIndex];
+  const opEmojis: Record<string, string> = { mix: '🎲', multiply: '✖️', subtract: '➖', add: '➕' };
+
   return {
-    operation: operations[opIndex],
-    difficulty: difficulties[diffIndex],
+    operation: op,
+    difficulty: diff,
     count: 10,
-    label: `${operationLabels[operations[opIndex]]}挑战`,
-    emoji: opIndex === 3 ? '🎲' : opIndex === 2 ? '✖️' : opIndex === 1 ? '➖' : '➕',
-    description: `今日${diffLabels[difficulties[diffIndex]]}难度 · ${operationLabels[operations[opIndex]]} · 10题`,
+    label: `${operationLabels[op]}挑战`,
+    emoji: opEmojis[op] ?? '➕',
+    description: `今日${diffLabels[diff]}难度 · ${operationLabels[op]} · 10题`,
   };
 }
 

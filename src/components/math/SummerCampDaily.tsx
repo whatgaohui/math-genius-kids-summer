@@ -59,6 +59,8 @@ export default function SummerCampDaily() {
   const [freeRecord, setFreeRecord] = useState<FreePracticeRecord | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speedTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  // 限时阶段是否已结算（防最后一题双击/倒计时与反馈定时器赛跑导致双写记录）
+  const speedSettled = useRef(false);
 
   // 模式判断：自由训练（从 sessionStorage 读取选题）或计划训练
   const freeTopic: FreeTopic | null = useMemo(() => {
@@ -85,7 +87,7 @@ export default function SummerCampDaily() {
   const baseCount: number = freeTopic?.count ?? plan?.count ?? 15;
   const speedCount: number = freeTopic?.speedCount ?? plan?.speedCount ?? 20;
   const speedSeconds: number = freeTopic?.speedSeconds ?? plan?.speedSeconds ?? 80;
-  const isTest: boolean = plan?.isTest ?? false;
+  const isTest: boolean = !freeTopic && (plan?.isTest ?? false);
   const themeColor: string = freeTopic
     ? (FREE_CATEGORIES.find((c) => c.topics.some((t) => t.id === freeTopic.id))?.color ?? '#06B6D4')
     : (phaseInfo?.color ?? '#F59E0B');
@@ -133,6 +135,7 @@ export default function SummerCampDaily() {
 
   // ── Start speed challenge ──
   const startSpeed = useCallback(() => {
+    speedSettled.current = false; // 新一轮限时开始，重置已结算标记
     const questions = generateCampQuestions(focus, speedCount);
     setSpeedSession({
       questions,
@@ -154,6 +157,9 @@ export default function SummerCampDaily() {
   // ── Finish speed & save record ──
   const finishSpeed = useCallback((finalSpeed: SessionState) => {
     if (!baseSession) return;
+    if (speedSettled.current) return; // 已结算，忽略重复触发
+    speedSettled.current = true;
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current); // 冲销未决的答题反馈
     if (speedTimer.current) clearInterval(speedTimer.current);
 
     const baseCorrect = baseSession.correct;
@@ -240,6 +246,8 @@ export default function SummerCampDaily() {
 
   // ── Answer handler ──
   const handleAnswer = useCallback((sessionType: 'base' | 'speed') => {
+    // 反馈展示期间的重复提交直接忽略（防止最后一题双击双写记录）
+    if (feedback) return;
     const session = sessionType === 'base' ? baseSession : speedSession;
     const setSession = sessionType === 'base' ? setBaseSession : setSpeedSession;
     if (!session) return;
@@ -270,17 +278,19 @@ export default function SummerCampDaily() {
         expression: current.expression,
         correctAnswer: typeof current.correctAnswer === "number" ? current.correctAnswer : String(current.correctAnswer),
         userAnswer: answerNum,
-        operation: current.operation === 'add' ? '加法' : current.operation === 'subtract' ? '减法' : current.operation,
+        // operation 统一写英文枚举（与 GamePlay/每日挑战一致），展示层负责转中文
+        operation: current.operation,
         difficulty: isTest ? 'hard' : 'medium',
         mode: sessionType === 'base' ? 'free' : 'speed',
         timestamp: Date.now(),
         date: new Date().toISOString(),
         reviewCount: 0,
         mastered: false,
-        grade: (plan?.phase ?? 3) <= 2 ? 1 : 2,
+        grade: useGameStore.getState().selectedMathGrade || undefined,
       });
     }
 
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
     feedbackTimer.current = setTimeout(() => {
       setFeedback(null);
       setInput('');
@@ -306,7 +316,7 @@ export default function SummerCampDaily() {
         });
       }
     }, isCorrect ? 500 : 1100);
-  }, [baseSession, speedSession, input, isTest, plan, finishSpeed]);
+  }, [baseSession, speedSession, input, feedback, isTest, finishSpeed]);
 
   // ── Number pad input ──
   const pressKey = (key: string) => {

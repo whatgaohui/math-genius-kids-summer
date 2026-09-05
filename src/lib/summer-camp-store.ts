@@ -171,8 +171,10 @@ export const useSummerCampStore = create<SummerCampState>()(
       recordDay: (record) =>
         set((s) => {
           const completedDays = { ...s.completedDays, [record.day]: record };
-          // 自动推进 currentDay：找第一个未完成的天
-          let nextDay = s.currentDay;
+          // 自动推进 currentDay：找第一个未完成的天。
+          // 从第 1 天扫起（而非 s.currentDay）——日期格子可以跳到任意天训练，
+          // 从 currentDay 起扫会永久跳过中间未完成的天
+          let nextDay = 1;
           while (nextDay <= 60 && completedDays[nextDay]?.completed) {
             nextDay++;
           }

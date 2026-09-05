@@ -83,8 +83,10 @@ function genAddCarry20(): MathQuestion {
 // 20以内退位减法（11-19 减 2-9，个位不够减）
 function genSubBorrow20(): MathQuestion {
   const tens = randInt(1, 1); // 十位为1
-  const ones = randInt(1, 9);
-  const num1 = tens * 10 + ones; // 11-19
+  // 个位取 1-8：若取 9，num2 只能是 10（19−10 个位够减，不是退位题），
+  // 与 genSub100Borrow 的 o1 = randInt(0, 8) 口径一致
+  const ones = randInt(1, 8);
+  const num1 = tens * 10 + ones; // 11-18
   const num2 = randInt(ones + 1, 9); // 个位不够减
   return mkSub(num1, num2);
 }

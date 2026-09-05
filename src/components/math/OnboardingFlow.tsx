@@ -42,7 +42,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     emoji: '🐾',
     title: '领养学习伙伴',
-    description: '用金币领养可爱的小宠物，它们会给你加成和陪伴！',
+    description: '免费领养可爱的小宠物，它们会给你加成和陪伴！',
     gradient: 'from-sky-400 via-blue-400 to-cyan-300',
     dotColor: 'bg-sky-400',
   },
@@ -225,15 +225,15 @@ export default function OnboardingFlow() {
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <span>🐱</span>
-                          <span>小猫 — 增加金币奖励</span>
+                          <span>布偶猫 — 增加金币奖励</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <span>🐶</span>
-                          <span>小狗 — 增加经验加成</span>
+                          <span>🐕</span>
+                          <span>柴犬 — 暴击概率提升</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <span>🦊</span>
-                          <span>狐狸 — 暴击概率提升</span>
+                          <span>🦮</span>
+                          <span>金毛 — 增加经验加成</span>
                         </div>
                       </div>
                     )}

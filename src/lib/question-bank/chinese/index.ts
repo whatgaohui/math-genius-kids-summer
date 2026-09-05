@@ -31,6 +31,8 @@ import {
   generateMixedModeQuestions,
   generateFromTemplate,
 } from './generators';
+// registry 只依赖 types，无循环依赖，直接静态导入（require 在纯 ESM 工具链下会挂）
+import { QuestionBankRegistry } from '../registry';
 
 // ─── Curriculum Topic Metadata ────────────────────────────────────────────────
 
@@ -353,9 +355,6 @@ export const chineseBank = new ChineseQuestionBank();
  * @param priority - Registration priority (default: 10). Higher = preferred.
  */
 export function registerChineseBank(priority: number = 10): void {
-  // Dynamic import to avoid circular dependencies at module level
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { QuestionBankRegistry } = require('../registry') as typeof import('../registry');
   QuestionBankRegistry.register(chineseBank, { priority, enabled: true });
 }
 

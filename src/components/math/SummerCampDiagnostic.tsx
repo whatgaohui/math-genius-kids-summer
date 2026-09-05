@@ -124,6 +124,8 @@ export default function SummerCampDiagnostic() {
 
   const handleAnswer = useCallback(() => {
     if (!test) return;
+    // 反馈展示期间的重复提交直接忽略（防止最后一题双击双写）
+    if (feedback) return;
     const current = test.items[test.index];
     if (!current) return;
     const answerNum = parseInt(input, 10);
@@ -145,7 +147,8 @@ export default function SummerCampDiagnostic() {
         expression: current.question.expression,
         correctAnswer: typeof current.question.correctAnswer === "number" ? current.question.correctAnswer : String(current.question.correctAnswer),
         userAnswer: answerNum,
-        operation: current.question.operation === 'add' ? '加法' : '减法',
+        // operation 统一写英文枚举（与 GamePlay/每日挑战一致），展示层负责转中文
+        operation: current.question.operation,
         difficulty: 'hard',
         mode: 'free',
         timestamp: Date.now(),
@@ -155,6 +158,7 @@ export default function SummerCampDiagnostic() {
       });
     }
 
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
     feedbackTimer.current = setTimeout(() => {
       setFeedback(null);
       setInput('');
@@ -167,7 +171,7 @@ export default function SummerCampDiagnostic() {
         setTest({ ...test, index: test.index + 1, correct: newCorrect, wrong: newWrong, answers: newAnswers, questionStart: Date.now() });
       }
     }, isCorrect ? 500 : 1100);
-  }, [test, input, finishTest]);
+  }, [test, input, feedback, finishTest]);
 
   const pressKey = (key: string) => {
     playClickSound();
@@ -277,6 +281,9 @@ export default function SummerCampDiagnostic() {
     const dimEntries = Object.entries(result.byDimension) as [DiagnosticDimension, { correct: number; total: number }][];
     const weakest = [...dimEntries].sort((a, b) => (a[1].correct / a[1].total) - (b[1].correct / b[1].total))[0];
     const strongest = [...dimEntries].sort((a, b) => (b[1].correct / b[1].total) - (a[1].correct / a[1].total))[0];
+    // 全维度都在 90% 以上时不展示"薄弱项"（此时最弱维度只是并列，展示出来会与强项自相矛盾）
+    const weakestRate = weakest ? weakest[1].correct / weakest[1].total : 1;
+    const showWeakest = weakest && weakestRate < 0.9;
 
     // suggestions
     const suggestions: string[] = [];
@@ -372,7 +379,11 @@ export default function SummerCampDiagnostic() {
               })}
             </div>
             <div className="mt-4 pt-3 border-t border-gray-50 flex items-center justify-between text-[11px]">
-              <span className="text-gray-400">💪 薄弱项：<b style={{ color: DIMENSION_INFO[weakest[0]].color }}>{DIMENSION_INFO[weakest[0]].label}</b></span>
+              {showWeakest ? (
+                <span className="text-gray-400">💪 薄弱项：<b style={{ color: DIMENSION_INFO[weakest[0]].color }}>{DIMENSION_INFO[weakest[0]].label}</b></span>
+              ) : (
+                <span className="text-gray-400">💪 各维度均衡，暂无薄弱项</span>
+              )}
               <span className="text-gray-400">🌟 强项：<b style={{ color: DIMENSION_INFO[strongest[0]].color }}>{DIMENSION_INFO[strongest[0]].label}</b></span>
             </div>
           </div>

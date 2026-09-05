@@ -60,6 +60,12 @@ import {
 import { useGameStore } from '@/lib/game-store';
 import BottomNav from '@/components/math/BottomNav';
 
+// API 基础路径：静态导出（GitHub Pages）挂在 /math-genius-kids-summer 子路径下，
+// 硬编码 /api/* 会请求到错误的根路径（与 tts.ts 的 NEXT_PUBLIC_BASE_PATH 处理一致）
+function apiBase(): string {
+  return `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api`;
+}
+
 // ─── Preset Bank Data ─────────────────────────────────────────────────────────
 
 interface PresetBank {
@@ -201,6 +207,58 @@ const itemVariants = {
 export default function QuestionBankManager() {
   const setCurrentView = useGameStore((s) => s.setCurrentView);
 
+  // 题库管理的服务端接口（list/install-preset/import/export）尚未实现，
+  // 页面内全部操作目前都会失败。与其展示一堆点了报"网络错误"的按钮，
+  // 不如诚实提示建设中；出题功能本身不受影响（三科练习用的是内置生成器）。
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 via-white to-sky-50 flex flex-col">
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-orange-100">
+        <div className="flex items-center gap-3 px-4 py-3 max-w-lg mx-auto">
+          <button
+            onClick={() => setCurrentView('home')}
+            className="flex items-center justify-center h-10 w-10 rounded-xl bg-gray-100 active:bg-gray-200 transition-colors min-h-[44px]"
+            aria-label="返回首页"
+          >
+            <ArrowLeft className="h-5 w-5 text-gray-600" />
+          </button>
+          <div className="flex-1">
+            <h1 className="text-lg font-bold text-gray-800">📚 题库管理</h1>
+            <p className="text-xs text-gray-500">为宝贝选好练习题</p>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 px-4 pt-10 pb-28 max-w-lg mx-auto w-full">
+        <div className="bg-white rounded-3xl p-8 shadow-sm border border-orange-100 text-center">
+          <div className="text-5xl mb-4">🚧</div>
+          <h2 className="text-base font-bold text-gray-800 mb-2">题库管理功能建设中</h2>
+          <p className="text-sm text-gray-500 leading-relaxed">
+            题库商店、手动出题、批量导入正在开发中，暂时无法使用。
+          </p>
+          <p className="text-xs text-gray-400 mt-3 leading-relaxed">
+            数学、语文、英语的日常练习不受影响——题目都来自内置题库，可以正常练习。
+          </p>
+          <button
+            onClick={() => setCurrentView('home')}
+            className="mt-6 px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-white text-sm font-bold shadow-md active:scale-95 transition-transform"
+          >
+            回去练习 →
+          </button>
+        </div>
+      </main>
+
+      <BottomNav />
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 以下为题库管理的完整交互实现（服务端接口就绪后恢复启用）
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function QuestionBankManagerFull() {
+  const setCurrentView = useGameStore((s) => s.setCurrentView);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 via-white to-sky-50 flex flex-col">
       {/* Header */}
@@ -289,7 +347,7 @@ function StoreTab() {
   // Check which presets are already installed
   const checkInstalled = useCallback(async () => {
     try {
-      const res = await fetch('/api/question-bank/list');
+      const res = await fetch(`${apiBase()}/question-bank/list`);
       const data = await res.json();
       if (data.success) {
         const bankSubjects = new Set<string>();
@@ -325,7 +383,7 @@ function StoreTab() {
 
     setInstallingId(preset.id);
     try {
-      const res = await fetch('/api/question-bank/install-preset', {
+      const res = await fetch(`${apiBase()}/question-bank/install-preset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ presetId: preset.id }),
@@ -640,7 +698,7 @@ function ManualTab() {
               if (subject === 'math') {
                 const mq = q as ManualMathQuestion;
                 return {
-                  topicId: `${subject}-${grade}a-custom`,
+                  topicId: `math-${grade}a-custom`,
                   expression: mq.expression,
                   answer: mq.answer,
                   options: mq.options,
@@ -650,7 +708,7 @@ function ManualTab() {
               } else if (subject === 'chinese') {
                 const cq = q as ManualChineseQuestion;
                 return {
-                  topicId: `${subject}-${grade}a-custom`,
+                  topicId: `cn-${grade}a-custom`,
                   mode: cq.mode,
                   prompt: cq.prompt,
                   correctAnswer: cq.correctAnswer,
@@ -660,7 +718,7 @@ function ManualTab() {
               } else {
                 const eq = q as ManualEnglishQuestion;
                 return {
-                  topicId: `${subject}-${grade}a-custom`,
+                  topicId: `en-${grade}a-custom`,
                   mode: eq.mode,
                   word: eq.word,
                   meaning: eq.meaning,
@@ -674,7 +732,7 @@ function ManualTab() {
         },
       };
 
-      const res = await fetch('/api/question-bank/import', {
+      const res = await fetch(`${apiBase()}/question-bank/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(importData),
@@ -1252,21 +1310,15 @@ function ImportTab() {
       }
       toast({ title: '文件已读取', description: `共 ${lines.length - 1} 行数据` });
     } else {
-      // For xlsx, read as ArrayBuffer and use a basic approach
+      // xlsx 是 zip 二进制格式，浏览器里没有解析库时按 UTF-8 解码只会得到乱码，
+      // 不能把乱码灌进文本框（否则用户点导入会把乱码行当题目提交）
       try {
-        const buffer = await file.arrayBuffer();
-        // Simple check - we'll treat xlsx as requiring the text paste or JSON method
+        await file.arrayBuffer(); // 确认文件可读
         toast({
-          title: 'xlsx 文件已选择',
-          description: '由于浏览器限制，请将内容复制粘贴到下方文本框中',
+          title: 'xlsx 文件暂不支持直接解析',
+          description: '请在 Excel 中另存为 CSV 后上传，或把内容复制粘贴到下方文本框',
         });
         setMethod('text');
-        // Try to read as text (may not work for all xlsx files)
-        const decoder = new TextDecoder('utf-8');
-        const text = decoder.decode(buffer);
-        if (text.includes('\t') || text.includes('\n')) {
-          setTextInput(text);
-        }
       } catch {
         toast({
           title: '文件读取失败',
@@ -1339,7 +1391,7 @@ function ImportTab() {
 
           if (detectedSubject === 'math') {
             questions.push({
-              topicId: 'custom-import',
+              topicId: 'math-custom-import',
               expression: cols[0]?.trim() || '',
               answer: Number(cols[1]?.trim()) || 0,
               options: [Number(cols[2]?.trim()) || 0, Number(cols[3]?.trim()) || 0, Number(cols[4]?.trim()) || 0, Number(cols[5]?.trim()) || 0].filter(n => n !== 0),
@@ -1348,7 +1400,7 @@ function ImportTab() {
             });
           } else if (detectedSubject === 'chinese') {
             questions.push({
-              topicId: 'custom-import',
+              topicId: 'cn-custom-import',
               mode: cols[0]?.trim() || 'word-match',
               prompt: cols[1]?.trim() || '',
               correctAnswer: cols[2]?.trim() || '',
@@ -1357,7 +1409,7 @@ function ImportTab() {
             });
           } else {
             questions.push({
-              topicId: 'custom-import',
+              topicId: 'en-custom-import',
               mode: 'word-picture',
               word: cols[0]?.trim() || '',
               meaning: cols[1]?.trim() || '',
@@ -1391,7 +1443,7 @@ function ImportTab() {
         return;
       }
 
-      const res = await fetch('/api/question-bank/import', {
+      const res = await fetch(`${apiBase()}/question-bank/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body,
@@ -1654,7 +1706,7 @@ function MyBanksTab() {
 
   const fetchBanks = useCallback(async () => {
     try {
-      const res = await fetch('/api/question-bank/list');
+      const res = await fetch(`${apiBase()}/question-bank/list`);
       const data = await res.json();
       if (data.success) {
         setBanks(data.banks);
@@ -1670,21 +1722,22 @@ function MyBanksTab() {
     fetchBanks();
   }, [fetchBanks]);
 
-  const handleToggle = useCallback(async (bankId: string, enabled: boolean) => {
+  // checked 是开关的新值（onCheckedChange 传入）；按新值统一处理，旧的 !enabled 反转会让开关弹回、文案颠倒
+  const handleToggle = useCallback(async (bankId: string, checked: boolean) => {
     try {
-      const res = await fetch('/api/question-bank/list', {
+      const res = await fetch(`${apiBase()}/question-bank/list`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bankId, action: enabled ? 'enable' : 'disable' }),
+        body: JSON.stringify({ bankId, action: checked ? 'enable' : 'disable' }),
       });
       const data = await res.json();
       if (data.success) {
         setBanks((prev) =>
-          prev.map((b) => (b.id === bankId ? { ...b, enabled: !enabled } : b))
+          prev.map((b) => (b.id === bankId ? { ...b, enabled: checked } : b))
         );
         toast({
-          title: enabled ? '已停用' : '已启用',
-          description: enabled ? '做题时将不会使用这个题库' : '做题时可以使用这个题库了',
+          title: checked ? '已启用' : '已停用',
+          description: checked ? '做题时可以使用这个题库了' : '做题时将不会使用这个题库',
         });
       }
     } catch {
@@ -1694,7 +1747,7 @@ function MyBanksTab() {
 
   const handleExport = useCallback(async (bank: BankInfo) => {
     try {
-      const res = await fetch('/api/question-bank/export', {
+      const res = await fetch(`${apiBase()}/question-bank/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bankId: bank.id }),
@@ -1719,7 +1772,7 @@ function MyBanksTab() {
 
   const handleDelete = useCallback(async (bankId: string) => {
     try {
-      const res = await fetch('/api/question-bank/list', {
+      const res = await fetch(`${apiBase()}/question-bank/list`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bankId, action: 'remove' }),

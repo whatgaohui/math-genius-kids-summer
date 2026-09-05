@@ -512,10 +512,10 @@ export default function SettingsPage() {
           <div className="mx-4 h-px bg-gray-50" />
           <SettingItem
             icon={<Database className="w-4 h-4 text-[#6C5CE7]" />} iconColor="#6C5CE7" iconBg="#6C5CE712"
-            title="题库管理" subtitle="导入、管理和导出题库"
+            title="题库管理" subtitle="功能建设中，敬请期待"
             onClick={() => useGameStore.getState().setCurrentView('question-bank-manager')}
           >
-            <Badge className="bg-[#6C5CE7]/10 text-[#6C5CE7] text-[10px] font-bold border-0 rounded-md">3科</Badge>
+            <Badge className="bg-gray-100 text-gray-400 text-[10px] font-bold border-0 rounded-md">建设中</Badge>
             <ChevronRight className="w-4 h-4 text-gray-300" />
           </SettingItem>
         </motion.div>

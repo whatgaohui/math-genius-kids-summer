@@ -179,9 +179,9 @@ export async function GET() {
         { id: 'math-1a-add10', desc: '一年级上册 10以内加法' },
         { id: 'math-2b-div9', desc: '二年级下册 除法' },
         { id: 'cn-1a-pinyin', desc: '一年级上册 拼音' },
-        { id: 'cn-3a-idiom', desc: '三年级上册 成语' },
+        { id: 'cn-4a-idiom', desc: '四年级上册 成语' },
         { id: 'en-1a-basic', desc: '一年级上册 基础词汇' },
-        { id: 'en-2a-family', desc: '二年级上册 家庭词汇' },
+        { id: 'en-2a-food', desc: '二年级上册 食物词汇' },
       ],
     },
     difficulty: {

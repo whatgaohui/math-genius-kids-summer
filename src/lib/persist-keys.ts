@@ -5,7 +5,6 @@ export const PERSISTED_KEYS = [
   'math-genius-pet-store',
   'math-genius-onboarding',
   'math-genius-learning-goals',
-  'math-genius-leaderboard-prefs',
   'summer-camp-store',
   'error-book',
 ] as const;

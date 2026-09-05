@@ -712,9 +712,10 @@ export default function PetRoomScene({ onCategoryClick }: PetRoomSceneProps = {}
       if (!itemId) continue;
       const item = FURNITURE_SHOP.find((f) => f.id === itemId);
       if (!item) continue;
-      if (item.tier === 1) score += 8;
-      else if (item.tier === 2) score += 14;
-      else if (item.tier === 3) score += 22;
+      // 从 effect 文案解析真实舒适值（"舒适+N"），与商店标注一致；
+      // 旧的按 tier 写死 8/14/22 漏了 tier4（传说家具加成为 0）且与标注数值不符
+      const m = item.effect.match(/舒适\+(\d+)/);
+      score += m ? Number(m[1]) : 0;
     }
     if (categories.every((cat) => equippedFurniture[cat])) score += 10;
     return Math.min(100, score);

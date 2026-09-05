@@ -284,6 +284,39 @@ export function clearMastered(): void {
 }
 
 /**
+ * operation 字段的展示名映射。
+ * 写入侧约定统一存英文枚举（add/subtract/multiply/mix/compare）或三科题型 id
+ * （recognize-pinyin 等）；旧数据里可能有中文（加法/减法），直接透传。
+ */
+const OPERATION_LABELS: Record<string, string> = {
+  add: '加法',
+  subtract: '减法',
+  multiply: '乘法',
+  divide: '除法',
+  mix: '混合运算',
+  compare: '比较大小',
+  'recognize-char': '识字',
+  'recognize-pinyin': '拼音',
+  'word-match': '词语搭配',
+  dictation: '听写',
+  'idiom-fill': '成语填空',
+  antonym: '反义词',
+  'poetry-fill': '古诗填空',
+  synonym: '近义词',
+  'sentence-fill': '句子填空',
+  'sentence-order': '句子排列',
+  reading: '阅读理解',
+  'word-picture': '看图识词',
+  'picture-word': '看词选图',
+  listening: '听力',
+  spelling: '拼写',
+};
+
+export function getOperationLabel(operation: string): string {
+  return OPERATION_LABELS[operation] ?? operation;
+}
+
+/**
  * Calculate aggregate statistics for the error book.
  */
 export function getStats(): ErrorBookStats {
@@ -313,9 +346,9 @@ export function getStats(): ErrorBookStats {
     if (entry.mastered) masteredCount++;
   }
 
-  // Sort weakest areas by count descending
+  // Sort weakest areas by count descending（名称转为中文展示）
   const weakestAreas = Array.from(areaMap.entries())
-    .map(([name, count]) => ({ name, count }))
+    .map(([name, count]) => ({ name: getOperationLabel(name), count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 5); // Top 5 weakest areas
 

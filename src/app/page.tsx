@@ -10,9 +10,6 @@ import { clearAllPersistedData } from '@/lib/persist-keys'
 // Lazy load all page components for performance
 const HomePage = dynamic(() => import('@/components/math/HomePage'), { ssr: false })
 const MathHome = dynamic(() => import('@/components/math/MathHome'), { ssr: false })
-const PracticeSetup = dynamic(() => import('@/components/math/PracticeSetup'), { ssr: false })
-const SpeedSetup = dynamic(() => import('@/components/math/SpeedSetup'), { ssr: false })
-const AdventureMode = dynamic(() => import('@/components/math/AdventureMode'), { ssr: false })
 const GamePlay = dynamic(() => import('@/components/math/GamePlay'), { ssr: false })
 const SpeedGamePlay = dynamic(() => import('@/components/math/SpeedGamePlay'), { ssr: false })
 const ResultPage = dynamic(() => import('@/components/math/ResultPage'), { ssr: false })
@@ -25,7 +22,6 @@ const ChineseHome = dynamic(() => import('@/components/chinese/ChineseHome'), { 
 const ChinesePlay = dynamic(() => import('@/components/chinese/ChinesePlay'), { ssr: false })
 const EnglishHome = dynamic(() => import('@/components/english/EnglishHome'), { ssr: false })
 const EnglishPlay = dynamic(() => import('@/components/english/EnglishPlay'), { ssr: false })
-const CurriculumTestTool = dynamic(() => import('@/components/math/CurriculumTestTool'), { ssr: false })
 const QuestionBankManager = dynamic(() => import('@/components/question-bank/QuestionBankManager'), { ssr: false })
 const ErrorBookPage = dynamic(() => import('@/components/math/ErrorBookPage'), { ssr: false })
 const DailyChallengePage = dynamic(() => import('@/components/math/DailyChallengePage'), { ssr: false })
@@ -44,10 +40,6 @@ const SummerCampReport = dynamic(() => import('@/components/math/SummerCampRepor
 const viewComponents: Record<string, React.ComponentType> = {
   home: HomePage,
   'math-home': MathHome,
-  'math-free-setup': PracticeSetup,
-  'math-speed-setup': SpeedSetup,
-  adventure: AdventureMode,
-  'math-adventure': AdventureMode,
   playing: GamePlay,
   speed: SpeedGamePlay,
   result: ResultPage,
@@ -62,7 +54,6 @@ const viewComponents: Record<string, React.ComponentType> = {
   english: EnglishHome,
   'english-home': EnglishHome,
   'english-play': EnglishPlay,
-  'curriculum-test': CurriculumTestTool,
   'question-bank-manager': QuestionBankManager,
   'error-book': ErrorBookPage,
   'daily-challenge': DailyChallengePage,

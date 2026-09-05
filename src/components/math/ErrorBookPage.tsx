@@ -28,6 +28,7 @@ import {
   clearMastered,
   resetErrorBook,
   formatRelativeTime,
+  getOperationLabel,
   type WrongQuestion,
 } from '@/lib/error-book';
 import { playClickSound } from '@/lib/sound';
@@ -216,7 +217,7 @@ export default function ErrorBookPage() {
                   </Badge>
                   {currentQ.operation && (
                     <Badge className="bg-gray-50 text-gray-500 border-0 text-[10px]">
-                      {currentQ.operation}
+                      {getOperationLabel(currentQ.operation)}
                     </Badge>
                   )}
                   <Badge className="bg-red-50 text-red-500 border-0 text-[10px]">

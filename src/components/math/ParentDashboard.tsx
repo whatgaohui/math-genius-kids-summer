@@ -793,7 +793,8 @@ function DailyActivityGrid({ records }: { records: PracticeRecord[] }) {
           <div className="grid grid-cols-7 gap-2">
             {gridData.map((day, i) => (
               <div key={i} className="flex flex-col items-center gap-1">
-                <span className="text-[9px] text-gray-400">{dayLabels[i]}</span>
+                {/* 星期按该列真实星期几取标签（dayOfWeek 0=周日），不再按列下标错位标注 */}
+                <span className="text-[9px] text-gray-400">{dayLabels[(day.dayOfWeek + 6) % 7]}</span>
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}

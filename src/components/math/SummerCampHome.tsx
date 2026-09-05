@@ -329,7 +329,12 @@ export default function SummerCampHome() {
                     <span className="text-xs text-gray-400">· 正确率 {todayRecord.accuracy}%</span>
                   </div>
                   <button
-                    onClick={() => { playClickSound(); setCurrentView('summer-daily'); }}
+                    onClick={() => {
+                      playClickSound();
+                      // 清除自由训练的选题残留，避免"再练一次"被劫持成自由训练
+                      try { sessionStorage.removeItem('summer-free-topic'); } catch { /* ignore */ }
+                      setCurrentView('summer-daily');
+                    }}
                     className="px-4 py-3 rounded-2xl bg-white text-xs font-bold active:scale-95 transition-transform"
                     style={{ color: todayPhase?.color }}
                   >
@@ -338,7 +343,12 @@ export default function SummerCampHome() {
                 </div>
               ) : (
                 <button
-                  onClick={() => { playClickSound(); setCurrentView('summer-daily'); }}
+                  onClick={() => {
+                    playClickSound();
+                    // 清除自由训练的选题残留，确保进入的是当日计划训练
+                    try { sessionStorage.removeItem('summer-free-topic'); } catch { /* ignore */ }
+                    setCurrentView('summer-daily');
+                  }}
                   className="w-full py-3.5 rounded-2xl text-white text-sm font-black shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2"
                   style={{ backgroundColor: todayPhase?.color, boxShadow: `0 6px 16px ${todayPhase?.color}40` }}
                 >
