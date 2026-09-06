@@ -538,7 +538,7 @@ export default function SettingsPage() {
                 <Smartphone className="w-3.5 h-3.5 text-[#6C5CE7]" />
               </div>
               <p className="text-[11px] font-semibold text-gray-700">下载APP</p>
-              <p className="text-[9px] text-gray-400">v1.4 · 约15MB</p>
+              <p className="text-[9px] text-gray-400">v1.4.1 · 约10MB</p>
             </a>
             {/* Recharge Coins */}
             <button
@@ -601,7 +601,7 @@ export default function SettingsPage() {
             </div>
             <div className="flex-1">
               <h4 className="text-[13px] font-bold text-gray-800">知识小勇士</h4>
-              <p className="text-[10px] text-gray-400 font-medium">v1.4.0 · 数学·语文·英语·宠物·成就</p>
+              <p className="text-[10px] text-gray-400 font-medium">v1.4.1 · 数学·语文·英语·宠物·成就</p>
             </div>
           </div>
         </motion.div>
