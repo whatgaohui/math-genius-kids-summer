@@ -530,7 +530,7 @@ export default function SettingsPage() {
           <div className="grid grid-cols-3 gap-0 border-t border-gray-50">
             {/* Download APK */}
             <a
-              href="/app-debug.apk"
+              href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/app-debug.apk`}
               download
               className="flex flex-col items-center justify-center py-3 text-center transition-colors active:bg-gray-50"
             >
@@ -538,7 +538,7 @@ export default function SettingsPage() {
                 <Smartphone className="w-3.5 h-3.5 text-[#6C5CE7]" />
               </div>
               <p className="text-[11px] font-semibold text-gray-700">下载APP</p>
-              <p className="text-[9px] text-gray-400">5.3MB</p>
+              <p className="text-[9px] text-gray-400">v1.4 · 约12MB</p>
             </a>
             {/* Recharge Coins */}
             <button
@@ -601,7 +601,7 @@ export default function SettingsPage() {
             </div>
             <div className="flex-1">
               <h4 className="text-[13px] font-bold text-gray-800">知识小勇士</h4>
-              <p className="text-[10px] text-gray-400 font-medium">v1.3.0 · 数学·语文·英语·宠物·成就</p>
+              <p className="text-[10px] text-gray-400 font-medium">v1.4.0 · 数学·语文·英语·宠物·成就</p>
             </div>
           </div>
         </motion.div>

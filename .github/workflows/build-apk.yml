@@ -1,0 +1,89 @@
+name: Build Android APK
+
+# 云端编译安卓 APK：静态导出 → cap sync → gradle assembleDebug
+# 产物提交到 public/app-debug.apk（设置页"下载APP"的文件源）。
+# 注意 paths 不能包含 public/app-debug.apk 本身，否则 bot 提交会无限自触发；
+# 该 bot 提交会正常触发 deploy-pages，把新 APK 发布到线上下载链接。
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/audio/**'
+      - 'android/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'bun.lock'
+      - '.github/workflows/build-apk.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build static site (out/)
+        run: node scripts/build-static.mjs
+
+      - name: Sync Capacitor Android project
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Copy APK to public/
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk public/app-debug.apk
+          SIZE=$(stat -c%s public/app-debug.apk)
+          echo "APK_SIZE_MB=$((SIZE / 1024 / 1024)) MB"
+          echo "APK_SIZE_MB=$((SIZE / 1024 / 1024))" >> $GITHUB_ENV
+
+      - name: Commit APK (and any cap-sync changes)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/app-debug.apk android/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: 云端编译 APK v1.4 ($APK_SIZE_MB MB)"
+            git push
+          fi
+
+      - name: Upload APK artifact (备份下载)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
